@@ -26,7 +26,8 @@ import com.skyfishjy.library.RippleBackground
 
 fun createStartIncomingScreenIntent(
     context: Context, callId: String, callType: Int, callInitiatorId: Int,
-    callInitiatorName: String, opponents: ArrayList<Int>, callPhoto: String?, userInfo: String
+    callInitiatorName: String, opponents: ArrayList<Int>, callPhoto: String?, userInfo: String,
+    acceptButtonLabel: String? = null, rejectButtonLabel: String? = null
 ): Intent {
     val intent = Intent(context, IncomingCallActivity::class.java)
     intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
@@ -37,6 +38,8 @@ fun createStartIncomingScreenIntent(
     intent.putIntegerArrayListExtra(EXTRA_CALL_OPPONENTS, opponents)
     intent.putExtra(EXTRA_CALL_PHOTO, callPhoto)
     intent.putExtra(EXTRA_CALL_USER_INFO, userInfo)
+    intent.putExtra(EXTRA_ACCEPT_BUTTON_LABEL, acceptButtonLabel)
+    intent.putExtra(EXTRA_REJECT_BUTTON_LABEL, rejectButtonLabel)
     return intent
 }
 
@@ -51,6 +54,8 @@ class IncomingCallActivity : Activity() {
     private var callOpponents: ArrayList<Int>? = ArrayList()
     private var callPhoto: String? = null
     private var callUserInfo: String? = null
+    private var acceptButtonLabel: String? = null
+    private var rejectButtonLabel: String? = null
 
 
     override fun onCreate(@Nullable savedInstanceState: Bundle?) {
@@ -157,6 +162,19 @@ class IncomingCallActivity : Activity() {
         callOpponents = intent.getIntegerArrayListExtra(EXTRA_CALL_OPPONENTS)
         callPhoto = intent.getStringExtra(EXTRA_CALL_PHOTO)
         callUserInfo = intent.getStringExtra(EXTRA_CALL_USER_INFO)
+        acceptButtonLabel = intent.getStringExtra(EXTRA_ACCEPT_BUTTON_LABEL)
+        rejectButtonLabel = intent.getStringExtra(EXTRA_REJECT_BUTTON_LABEL)
+    }
+
+    private fun applyButtonLabel(textViewId: String, label: String?) {
+        val labelView: TextView =
+            findViewById(resources.getIdentifier(textViewId, "id", packageName))
+        if (TextUtils.isEmpty(label)) {
+            labelView.visibility = View.GONE
+            return
+        }
+        labelView.text = label
+        labelView.visibility = View.VISIBLE
     }
 
     private fun initUi() {
@@ -201,6 +219,9 @@ class IncomingCallActivity : Activity() {
         val rejectButtonAnimation: RippleBackground =
             findViewById(resources.getIdentifier("reject_button_animation", "id", packageName))
         rejectButtonAnimation.startRippleAnimation()
+
+        applyButtonLabel("accept_button_label_txt", acceptButtonLabel)
+        applyButtonLabel("reject_button_label_txt", rejectButtonLabel)
     }
 
     // calls from layout file

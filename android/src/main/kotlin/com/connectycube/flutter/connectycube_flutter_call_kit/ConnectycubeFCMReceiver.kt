@@ -78,6 +78,8 @@ class ConnectycubeFCMReceiver : BroadcastReceiver() {
             callOpponents = ArrayList(callOpponentsString.split(',').map { it.toInt() })
         }
         val userInfo = data["user_info"] ?: JSONObject(emptyMap<String, String>()).toString()
+        val acceptButtonLabel = data["accept_button_label"]
+        val rejectButtonLabel = data["reject_button_label"]
 
         if (callType == null || callInitiatorId == null || callInitiatorName == null || callOpponents.isEmpty()) {
             Log.d(TAG, "[processInviteCallEvent] callType == null || callInitiatorId == null || callInitiatorName == null || callOpponents.isEmpty()")
@@ -103,7 +105,9 @@ class ConnectycubeFCMReceiver : BroadcastReceiver() {
             callInitiatorName,
             callOpponents,
             callPhoto,
-            userInfo
+            userInfo,
+            acceptButtonLabel,
+            rejectButtonLabel
         )
 
         saveCallState(applicationContext, callId, CALL_STATE_PENDING)

@@ -154,6 +154,8 @@ class ConnectycubeFlutterCallKitPlugin : FlutterPlugin, MethodCallHandler,
                         .map { it.toInt() })
                     val callPhoto = arguments["photo_url"] as String?
                     val userInfo = arguments["user_info"] as String
+                    val acceptButtonLabel = arguments["accept_button_label"] as String?
+                    val rejectButtonLabel = arguments["reject_button_label"] as String?
 
                     showCallNotification(
                         applicationContext!!,
@@ -163,7 +165,9 @@ class ConnectycubeFlutterCallKitPlugin : FlutterPlugin, MethodCallHandler,
                         callInitiatorName,
                         callOpponents,
                         callPhoto,
-                        userInfo
+                        userInfo,
+                        acceptButtonLabel,
+                        rejectButtonLabel
                     )
 
                     saveCallState(applicationContext, callId, CALL_STATE_PENDING)

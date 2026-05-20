@@ -38,7 +38,8 @@ fun cancelCallNotification(context: Context, callId: String) {
 
 fun showCallNotification(
     context: Context, callId: String, callType: Int, callInitiatorId: Int,
-    callInitiatorName: String, callOpponents: ArrayList<Int>, callPhoto: String?, userInfo: String
+    callInitiatorName: String, callOpponents: ArrayList<Int>, callPhoto: String?, userInfo: String,
+    acceptButtonLabel: String? = null, rejectButtonLabel: String? = null
 ) {
     Log.d("NotificationsManager", "[showCallNotification]")
     val notificationManager = NotificationManagerCompat.from(context)
@@ -82,6 +83,8 @@ fun showCallNotification(
     callData.putIntegerArrayList(EXTRA_CALL_OPPONENTS, callOpponents)
     callData.putString(EXTRA_CALL_PHOTO, callPhoto)
     callData.putString(EXTRA_CALL_USER_INFO, userInfo)
+    callData.putString(EXTRA_ACCEPT_BUTTON_LABEL, acceptButtonLabel)
+    callData.putString(EXTRA_REJECT_BUTTON_LABEL, rejectButtonLabel)
 
     val defaultPhoto = getDefaultPhoto(context)
 
@@ -106,7 +109,9 @@ fun showCallNotification(
         callInitiatorName,
         callOpponents,
         callPhoto,
-        userInfo
+        userInfo,
+        acceptButtonLabel,
+        rejectButtonLabel
     )
 
     // Add action when delete call notification
@@ -281,7 +286,9 @@ fun addCallFullScreenIntent(
     callInitiatorName: String,
     callOpponents: ArrayList<Int>,
     callPhoto: String?,
-    userInfo: String
+    userInfo: String,
+    acceptButtonLabel: String? = null,
+    rejectButtonLabel: String? = null
 ) {
     val callFullScreenIntent: Intent = createStartIncomingScreenIntent(
         context,
@@ -291,7 +298,9 @@ fun addCallFullScreenIntent(
         callInitiatorName,
         callOpponents,
         callPhoto,
-        userInfo
+        userInfo,
+        acceptButtonLabel,
+        rejectButtonLabel
     )
     val fullScreenPendingIntent = PendingIntent.getActivity(
         context,

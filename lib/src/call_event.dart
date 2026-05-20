@@ -16,6 +16,8 @@ class CallEvent {
     required this.opponentsIds,
     this.callPhoto,
     this.userInfo,
+    this.acceptButtonLabel,
+    this.rejectButtonLabel,
   });
 
   final String sessionId;
@@ -24,6 +26,10 @@ class CallEvent {
   final String callerName;
   final Set<int> opponentsIds;
   final String? callPhoto;
+
+  /// Android full-screen incoming UI only. Ignored on iOS CallKit.
+  final String? acceptButtonLabel;
+  final String? rejectButtonLabel;
 
   /// Used for exchanging additional data between the Call notification and your app,
   /// you will get this data in event callbacks (e.g. onCallAcceptedWhenTerminated,
@@ -39,6 +45,8 @@ class CallEvent {
     Set<int>? opponentsIds,
     String? callPhoto,
     Map<String, String>? userInfo,
+    String? acceptButtonLabel,
+    String? rejectButtonLabel,
   }) {
     return CallEvent(
       sessionId: sessionId ?? this.sessionId,
@@ -48,6 +56,8 @@ class CallEvent {
       opponentsIds: opponentsIds ?? this.opponentsIds,
       callPhoto: callPhoto ?? this.callPhoto,
       userInfo: userInfo ?? this.userInfo,
+      acceptButtonLabel: acceptButtonLabel ?? this.acceptButtonLabel,
+      rejectButtonLabel: rejectButtonLabel ?? this.rejectButtonLabel,
     );
   }
 
@@ -60,6 +70,10 @@ class CallEvent {
       'call_opponents': opponentsIds.join(','),
       'photo_url': callPhoto,
       'user_info': jsonEncode(userInfo ?? <String, String>{}),
+      if (acceptButtonLabel != null && acceptButtonLabel!.isNotEmpty)
+        'accept_button_label': acceptButtonLabel,
+      if (rejectButtonLabel != null && rejectButtonLabel!.isNotEmpty)
+        'reject_button_label': rejectButtonLabel,
     };
   }
 
@@ -72,9 +86,11 @@ class CallEvent {
       callerName: map['caller_name'] as String,
       opponentsIds:
           (map['call_opponents'] as String).split(',').map(int.parse).toSet(),
-      callPhoto: map['photo_url'],
+      callPhoto: map['photo_url'] as String?,
+      acceptButtonLabel: map['accept_button_label'] as String?,
+      rejectButtonLabel: map['reject_button_label'] as String?,
       userInfo: map['user_info'] != null
-          ? Map<String, String>.from(jsonDecode(map['user_info']))
+          ? Map<String, String>.from(jsonDecode(map['user_info'] as String))
           : null,
     );
   }
@@ -93,6 +109,8 @@ class CallEvent {
         'callerName: $callerName, '
         'opponentsIds: $opponentsIds, '
         'callPhoto: $callPhoto, '
+        'acceptButtonLabel: $acceptButtonLabel, '
+        'rejectButtonLabel: $rejectButtonLabel, '
         'userInfo: $userInfo)';
   }
 
@@ -107,6 +125,8 @@ class CallEvent {
         other.callerName == callerName &&
         setEquals(other.opponentsIds, opponentsIds) &&
         other.callPhoto == callPhoto &&
+        other.acceptButtonLabel == acceptButtonLabel &&
+        other.rejectButtonLabel == rejectButtonLabel &&
         mapEquals(other.userInfo, userInfo);
   }
 
@@ -117,6 +137,8 @@ class CallEvent {
         callerId.hashCode ^
         callerName.hashCode ^
         opponentsIds.hashCode ^
+        (acceptButtonLabel?.hashCode ?? 0) ^
+        (rejectButtonLabel?.hashCode ?? 0) ^
         userInfo.hashCode;
   }
 }

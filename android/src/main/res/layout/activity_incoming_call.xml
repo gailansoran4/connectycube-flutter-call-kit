@@ -63,50 +63,99 @@
         android:gravity="center_horizontal"
         android:orientation="horizontal">
 
-        <com.skyfishjy.library.RippleBackground
-            android:id="@+id/reject_button_animation"
-            android:layout_width="120dp"
-            android:layout_height="120dp"
-            app:rb_color="#FF5A33"
-            app:rb_duration="3000"
-            app:rb_radius="28dp"
-            app:rb_rippleAmount="5"
-            app:rb_scale="2">
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center_horizontal"
+            android:orientation="vertical">
 
-            <ImageView
-                android:id="@+id/end_call_btn"
-                android:layout_width="60dp"
-                android:layout_height="60dp"
-                android:layout_centerInParent="true"
-                android:background="@drawable/selector_call_end"
-                android:onClick="onEndCall"
-                android:padding="16dp"
-                android:src="@drawable/ic_call_end"
-                tools:ignore="ContentDescription" />
-        </com.skyfishjy.library.RippleBackground>
+            <com.skyfishjy.library.RippleBackground
+                android:id="@+id/reject_button_animation"
+                android:layout_width="120dp"
+                android:layout_height="120dp"
+                app:rb_color="#FF5A33"
+                app:rb_duration="3000"
+                app:rb_radius="28dp"
+                app:rb_rippleAmount="5"
+                app:rb_scale="2">
 
-        <com.skyfishjy.library.RippleBackground xmlns:app="http://schemas.android.com/apk/res-auto"
-            android:id="@+id/accept_button_animation"
-            android:layout_width="120dp"
-            android:layout_height="120dp"
+                <ImageView
+                    android:id="@+id/end_call_btn"
+                    android:layout_width="60dp"
+                    android:layout_height="60dp"
+                    android:layout_centerInParent="true"
+                    android:background="@drawable/selector_call_end"
+                    android:onClick="onEndCall"
+                    android:padding="16dp"
+                    android:src="@drawable/ic_call_end"
+                    tools:ignore="ContentDescription" />
+            </com.skyfishjy.library.RippleBackground>
+
+            <TextView
+                android:id="@+id/reject_button_label_txt"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:ellipsize="end"
+                android:gravity="center"
+                android:maxLines="2"
+                android:shadowColor="#7F000000"
+                android:shadowDx="1"
+                android:shadowDy="1"
+                android:shadowRadius="4"
+                android:textColor="#FBFBFB"
+                android:textSize="14sp"
+                android:visibility="gone"
+                tools:text="Reject"
+                tools:visibility="visible" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
             android:layout_marginStart="64dp"
-            app:rb_color="#80CB83"
-            app:rb_duration="3000"
-            app:rb_radius="28dp"
-            app:rb_rippleAmount="5"
-            app:rb_scale="2">
+            android:gravity="center_horizontal"
+            android:orientation="vertical">
 
-            <ImageView
-                android:id="@+id/start_call_btn"
-                android:layout_width="60dp"
-                android:layout_height="60dp"
-                android:layout_centerInParent="true"
-                android:background="@drawable/selector_call_start"
-                android:onClick="onStartCall"
-                android:padding="16dp"
-                tools:ignore="ContentDescription"
-                tools:src="@drawable/ic_video_call_start" />
+            <com.skyfishjy.library.RippleBackground
+                android:id="@+id/accept_button_animation"
+                android:layout_width="120dp"
+                android:layout_height="120dp"
+                app:rb_color="#80CB83"
+                app:rb_duration="3000"
+                app:rb_radius="28dp"
+                app:rb_rippleAmount="5"
+                app:rb_scale="2">
 
-        </com.skyfishjy.library.RippleBackground>
+                <ImageView
+                    android:id="@+id/start_call_btn"
+                    android:layout_width="60dp"
+                    android:layout_height="60dp"
+                    android:layout_centerInParent="true"
+                    android:background="@drawable/selector_call_start"
+                    android:onClick="onStartCall"
+                    android:padding="16dp"
+                    tools:ignore="ContentDescription"
+                    tools:src="@drawable/ic_video_call_start" />
+            </com.skyfishjy.library.RippleBackground>
+
+            <TextView
+                android:id="@+id/accept_button_label_txt"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:ellipsize="end"
+                android:gravity="center"
+                android:maxLines="2"
+                android:shadowColor="#7F000000"
+                android:shadowDx="1"
+                android:shadowDy="1"
+                android:shadowRadius="4"
+                android:textColor="#FBFBFB"
+                android:textSize="14sp"
+                android:visibility="gone"
+                tools:text="Accept"
+                tools:visibility="visible" />
+        </LinearLayout>
     </LinearLayout>
 </RelativeLayout>

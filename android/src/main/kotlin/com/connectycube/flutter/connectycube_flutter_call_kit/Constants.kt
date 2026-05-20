@@ -8,6 +8,8 @@ const val EXTRA_CALL_OPPONENTS = "extra_call_opponents"
 const val EXTRA_CALL_USER_INFO = "extra_call_user_info"
 const val EXTRA_PUSH_TOKEN = "extra_push_token"
 const val EXTRA_CALL_PHOTO = "photo_url"
+const val EXTRA_ACCEPT_BUTTON_LABEL = "accept_button_label"
+const val EXTRA_REJECT_BUTTON_LABEL = "reject_button_label"
 
 const val ACTION_CALL_ACCEPT = "action_call_accept"
 const val ACTION_CALL_REJECT = "action_call_reject"
