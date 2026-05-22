@@ -398,10 +398,10 @@ void _backgroundEventsCallbackDispatcher() {
             Map<String, dynamic>.from(call.arguments['args']);
         final CallEvent callEvent = CallEvent.fromMap(callEventMap);
         await callback(callEvent);
-      } catch (e) {
-        // ignore: avoid_print
-        log('[ConnectycubeFlutterCallKit][_backgroundEventsCallbackDispatcher] An error occurred in your background event handler: $e');
-        // ignore: avoid_print
+      } catch (e, stack) {
+        log(
+          '[ConnectycubeFlutterCallKit][_backgroundEventsCallbackDispatcher] An error occurred in your background event handler: $e\n$stack',
+        );
       }
     } else {
       throw UnimplementedError('${call.method} has not been implemented');

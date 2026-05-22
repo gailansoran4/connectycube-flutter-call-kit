@@ -77,21 +77,50 @@ class CallEvent {
     };
   }
 
+  static int readInt(dynamic value, {int fallback = 0}) {
+    if (value is int) return value;
+    return int.tryParse(value?.toString() ?? '') ?? fallback;
+  }
+
+  static Set<int> readOpponents(dynamic value) {
+    if (value == null) return {};
+    final text = value.toString().trim();
+    if (text.isEmpty) return {};
+    return text
+        .split(',')
+        .map((part) => int.tryParse(part.trim()))
+        .whereType<int>()
+        .toSet();
+  }
+
+  static Map<String, String>? readUserInfo(dynamic value) {
+    if (value == null) return null;
+    if (value is Map) {
+      return value.map((key, item) => MapEntry(key.toString(), item.toString()));
+    }
+    final text = value.toString().trim();
+    if (text.isEmpty) return null;
+    try {
+      final decoded = jsonDecode(text);
+      if (decoded is Map) {
+        return decoded.map((key, item) => MapEntry(key.toString(), item.toString()));
+      }
+    } catch (_) {}
+    return null;
+  }
+
   factory CallEvent.fromMap(Map<String, dynamic> map) {
     print('[CallEvent.fromMap] map: $map');
     return CallEvent(
-      sessionId: map['session_id'] as String,
-      callType: map['call_type'] as int,
-      callerId: map['caller_id'] as int,
-      callerName: map['caller_name'] as String,
-      opponentsIds:
-          (map['call_opponents'] as String).split(',').map(int.parse).toSet(),
-      callPhoto: map['photo_url'] as String?,
-      acceptButtonLabel: map['accept_button_label'] as String?,
-      rejectButtonLabel: map['reject_button_label'] as String?,
-      userInfo: map['user_info'] != null
-          ? Map<String, String>.from(jsonDecode(map['user_info'] as String))
-          : null,
+      sessionId: map['session_id']?.toString() ?? '',
+      callType: readInt(map['call_type']),
+      callerId: readInt(map['caller_id']),
+      callerName: map['caller_name']?.toString() ?? '',
+      opponentsIds: readOpponents(map['call_opponents']),
+      callPhoto: map['photo_url']?.toString(),
+      acceptButtonLabel: map['accept_button_label']?.toString(),
+      rejectButtonLabel: map['reject_button_label']?.toString(),
+      userInfo: readUserInfo(map['user_info']),
     );
   }
 
