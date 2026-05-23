@@ -44,20 +44,20 @@ class EventReceiver : BroadcastReceiver() {
                 bundle.putString(EXTRA_CALL_USER_INFO, userInfo)
                 broadcastIntent.putExtras(bundle)
 
-                LocalBroadcastManager.getInstance(context.applicationContext)
-                    .sendBroadcast(broadcastIntent)
-
-                NotificationManagerCompat.from(context).cancel(callId.hashCode())
-
-                processCallEnded(context, callId!!)
-
-                if (!isApplicationForeground(context)) {
+                if (isApplicationForeground(context)) {
+                    LocalBroadcastManager.getInstance(context.applicationContext)
+                        .sendBroadcast(broadcastIntent)
+                } else {
                     broadcastIntent.putExtra("userCallbackHandleName", REJECTED_IN_BACKGROUND)
                     ConnectycubeFlutterBgPerformingService.enqueueMessageProcessing(
                         context,
                         broadcastIntent
                     )
                 }
+
+                NotificationManagerCompat.from(context).cancel(callId.hashCode())
+
+                processCallEnded(context, callId!!)
             }
 
             ACTION_CALL_ACCEPT -> {
@@ -82,14 +82,14 @@ class EventReceiver : BroadcastReceiver() {
                 bundle.putString(EXTRA_CALL_USER_INFO, userInfo)
                 broadcastIntent.putExtras(bundle)
 
-                LocalBroadcastManager.getInstance(context.applicationContext)
-                    .sendBroadcast(broadcastIntent)
-
                 NotificationManagerCompat.from(context).cancel(callId.hashCode())
 
                 saveCallState(context, callId!!, CALL_STATE_ACCEPTED)
 
-                if (!isApplicationForeground(context)) {
+                if (isApplicationForeground(context)) {
+                    LocalBroadcastManager.getInstance(context.applicationContext)
+                        .sendBroadcast(broadcastIntent)
+                } else {
                     broadcastIntent.putExtra("userCallbackHandleName", ACCEPTED_IN_BACKGROUND)
                     ConnectycubeFlutterBgPerformingService.enqueueMessageProcessing(
                         context,

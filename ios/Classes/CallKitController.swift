@@ -297,12 +297,19 @@ extension CallKitController: CXProviderDelegate {
     }
     
     func provider(_ provider: CXProvider, perform action: CXAnswerCallAction) {
-        print("[CallKitController][CXAnswerCallAction] callUUID: \(action.callUUID.uuidString.lowercased())")
-        
+        let uuid = action.callUUID.uuidString.lowercased()
+        print("[CallKitController][CXAnswerCallAction] callUUID: \(uuid)")
+
+        if callStates[uuid] == .accepted {
+            print("[CallKitController][CXAnswerCallAction] skip duplicate answerCall")
+            action.fulfill()
+            return
+        }
+
         configureAudioSession(active: true)
-        callStates[action.callUUID.uuidString.lowercased()] = .accepted
+        callStates[uuid] = .accepted
         actionListener?(.answerCall, action.callUUID, self.currentCallData)
-        
+
         action.fulfill()
     }
     
@@ -318,11 +325,18 @@ extension CallKitController: CXProviderDelegate {
     }
     
     func provider(_ provider: CXProvider, perform action: CXEndCallAction) {
-        print("[CallKitController][CXEndCallAction]")
-        
+        let uuid = action.callUUID.uuidString.lowercased()
+        print("[CallKitController][CXEndCallAction] callUUID: \(uuid)")
+
+        if callStates[uuid] == .rejected {
+            print("[CallKitController][CXEndCallAction] skip duplicate endCall")
+            action.fulfill()
+            return
+        }
+
         actionListener?(.endCall, action.callUUID, currentCallData)
-        callStates[action.callUUID.uuidString.lowercased()] = .rejected
-        
+        callStates[uuid] = .rejected
+
         action.fulfill()
     }
     
