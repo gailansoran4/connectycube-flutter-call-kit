@@ -49,16 +49,6 @@ fun showCallNotification(
         "[showCallNotification] canUseFullScreenIntent: ${notificationManager.canUseFullScreenIntent()}"
     )
 
-    val intent = getLaunchIntent(context)
-
-    val pendingIntent = PendingIntent.getActivity(
-        context,
-        callId.hashCode(),
-        intent,
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE else PendingIntent.FLAG_UPDATE_CURRENT
-
-    )
-
     var ringtone: Uri
 
     val customRingtone = getString(context, "ringtone")
@@ -93,7 +83,6 @@ fun showCallNotification(
             context,
             callInitiatorName,
             callTypeTitle,
-            pendingIntent,
             ringtone,
             isVideoCall,
             callData
@@ -203,7 +192,6 @@ fun createCallNotification(
     context: Context,
     title: String,
     callName: String?,
-    pendingIntent: PendingIntent,
     ringtone: Uri,
     isVideoCall: Boolean,
     callData: Bundle
@@ -226,10 +214,11 @@ fun createCallNotification(
         .setStyle(style)
         .addPerson(person)
         .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-        .setAutoCancel(true)
+        // Keep the alert until Accept/Reject/timeout. Tapping the body must not
+        // open the app or auto-dismiss (that was clearing the incoming call UI).
+        .setAutoCancel(false)
         .setOngoing(true)
         .setCategory(NotificationCompat.CATEGORY_CALL)
-        .setContentIntent(pendingIntent)
         .setSound(ringtone)
         .setPriority(NotificationCompat.PRIORITY_MAX)
         .setTimeoutAfter(60000)
