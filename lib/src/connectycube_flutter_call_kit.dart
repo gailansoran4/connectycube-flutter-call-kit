@@ -64,6 +64,7 @@ class ConnectycubeFlutterCallKit {
       CallEventHandler? onCallIncoming,
       String? ringtone,
       String? icon,
+      String? background,
       @Deprecated('Use `AndroidManifest.xml` meta-data instead')
       String? notificationIcon,
       String? color}) {
@@ -74,6 +75,7 @@ class ConnectycubeFlutterCallKit {
     updateConfig(
         ringtone: ringtone,
         icon: icon,
+        background: background,
         notificationIcon: notificationIcon,
         color: color);
 
@@ -157,11 +159,13 @@ class ConnectycubeFlutterCallKit {
   /// Sets the additional configs for the Call notification
   /// [ringtone] - the name of the ringtone source (for Anfroid it should be placed by path 'res/raw', for iOS it is a name of ringtone)
   /// [icon] - the name of image in the `drawable` folder for Android and the name of Assests set for iOS
+  /// [background] - the name of image in the `drawable` folder used as full-screen incoming call background on Android, ignored for iOS
   /// [notificationIcon] - the name of the image in the `drawable` folder, uses as Notification Small Icon for Android, ignored for iOS
   /// [color] - the color in the format '#RRGGBB', uses as an Android Notification accent color, ignored for iOS
   Future<void> updateConfig(
       {String? ringtone,
       String? icon,
+      String? background,
       @Deprecated('Use `AndroidManifest.xml` meta-data instead')
       String? notificationIcon,
       String? color}) {
@@ -170,6 +174,7 @@ class ConnectycubeFlutterCallKit {
     return _methodChannel.invokeMethod('updateConfig', {
       'ringtone': ringtone,
       'icon': icon,
+      'background': background,
       'notification_icon': notificationIcon,
       'color': color,
     });

@@ -36,6 +36,17 @@ fun getPhotoPlaceholderResId(context: Context): Int {
     }
 }
 
+fun getCallBackgroundResId(context: Context): Int {
+    val backgroundResName = getString(context.applicationContext, "background")
+    if (TextUtils.isEmpty(backgroundResName)) return 0
+
+    return context.resources.getIdentifier(
+        backgroundResName,
+        "drawable",
+        context.packageName
+    )
+}
+
 fun getCircleBitmap(bitmap: Bitmap): Bitmap {
     val output = Bitmap.createBitmap(bitmap.width, bitmap.height, Bitmap.Config.ARGB_8888)
     val canvas = Canvas(output)

@@ -186,11 +186,13 @@ class ConnectycubeFlutterCallKitPlugin : FlutterPlugin, MethodCallHandler,
                         call.arguments as Map<String, Any>
                     val ringtone = arguments["ringtone"] as String?
                     val icon = arguments["icon"] as String?
+                    val background = arguments["background"] as String?
                     val notificationIcon = arguments["notification_icon"] as String?
                     val color = arguments["color"] as String?
 
                     putString(applicationContext!!, "ringtone", ringtone)
                     putString(applicationContext!!, "icon", icon)
+                    putString(applicationContext!!, "background", background)
                     putString(applicationContext!!, "notification_icon", notificationIcon)
                     putString(applicationContext!!, "color", color)
 

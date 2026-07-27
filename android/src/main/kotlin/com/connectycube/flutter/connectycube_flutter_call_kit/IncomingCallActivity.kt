@@ -19,6 +19,7 @@ import android.widget.TextView
 import androidx.annotation.Nullable
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import com.bumptech.glide.Glide
+import com.connectycube.flutter.connectycube_flutter_call_kit.utils.getCallBackgroundResId
 import com.connectycube.flutter.connectycube_flutter_call_kit.utils.getPhotoPlaceholderResId
 import com.google.android.material.imageview.ShapeableImageView
 import com.skyfishjy.library.RippleBackground
@@ -178,6 +179,16 @@ class IncomingCallActivity : Activity() {
     }
 
     private fun initUi() {
+        val backgroundImg: ImageView =
+            findViewById(resources.getIdentifier("call_background_img", "id", packageName))
+        val backgroundResId = getCallBackgroundResId(applicationContext)
+        if (backgroundResId != 0) {
+            backgroundImg.setImageResource(backgroundResId)
+            backgroundImg.visibility = View.VISIBLE
+        } else {
+            backgroundImg.visibility = View.GONE
+        }
+
         val callTitleTxt: TextView =
             findViewById(resources.getIdentifier("user_name_txt", "id", packageName))
         callTitleTxt.text = callInitiatorName
