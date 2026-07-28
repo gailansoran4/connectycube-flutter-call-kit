@@ -24,16 +24,18 @@ class AndroidCallKitParams {
   /// Show app logo on the full-screen incoming UI.
   final bool? isShowLogo;
 
-  /// Drawable name, asset path, or http(s) URL for the logo.
+  /// Drawable name, Flutter asset path (`assets/image/logo.png`), or http(s) URL for the logo.
   final String? logoUrl;
 
-  /// Ringtone file name under `res/raw` (e.g. `ringtone_default`).
+  /// Ringtone: Android `res/raw` name, **or** Flutter asset path
+  /// (`assets/ringtone/call_ring` / `assets/ringtone/call_ring.mp3`).
+  /// For iOS use [IOSCallKitParams.ringtonePath] (bundled name or Flutter asset).
   final String? ringtonePath;
 
   /// Full-screen background color as `#RRGGBB` or `#AARRGGBB`.
   final String? backgroundColor;
 
-  /// Drawable name or http(s) URL for full-screen background image.
+  /// Drawable name, Flutter asset path (`assets/image/call_background.png`), or http(s) URL.
   final String? backgroundUrl;
 
   /// Accent / action color for notifications and buttons.

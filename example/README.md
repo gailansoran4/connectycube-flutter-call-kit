@@ -18,6 +18,31 @@ flutter pub get
 flutter run
 ```
 
+## Android assets (Flutter)
+
+Declare in `example/pubspec.yaml` (already done):
+
+- `assets/ringtone/call_ring.mp3` — pass as `assets/ringtone/call_ring` (extension optional)
+- `assets/image/call_icon.png`
+- `assets/image/call_background.png`
+
+Or keep using drawable/raw names under `android/app/src/main/res/`.
+
+## Automated tests
+
+From the package root:
+
+```bash
+flutter test
+```
+
+Covers:
+- `MissedCallNotificationParams` / `AndroidCallKitParams` serialization
+- `CallEvent` payloads for incoming, timeout duration, missed notification, Android UI
+- `updateConfig` argument map
+- Foreground event routing: `timeoutCall`, `missedCallCallback`, accept/reject/incoming
+- Background callback name constants (including missed callback)
+
 ## Manual test matrix (Android + iOS)
 
 For each platform, repeat in **foreground**, **background** (Home), and **terminated** (swipe away):

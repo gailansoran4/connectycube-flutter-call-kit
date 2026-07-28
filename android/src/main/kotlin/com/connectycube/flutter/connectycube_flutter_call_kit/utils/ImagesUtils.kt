@@ -19,6 +19,11 @@ fun getPhotoPlaceholderResId(context: Context): Int {
             context.packageName
         )
 
+    // Flutter asset icons are loaded via Glide — keep drawable fallback only.
+    if (isFlutterAssetPath(customAvatarResName)) {
+        return defaultImgResId
+    }
+
     return if (TextUtils.isEmpty(customAvatarResName)) {
         defaultImgResId
     } else {
@@ -36,13 +41,19 @@ fun getPhotoPlaceholderResId(context: Context): Int {
     }
 }
 
+/** Load URL for configured avatar/icon (Flutter asset, http, or null for drawable). */
+fun getConfiguredIconLoadUrl(context: Context): String? {
+    val icon = getString(context.applicationContext, "icon")
+    return resolveDrawableOrAssetUrl(context, icon)
+}
+
 fun getCallBackgroundResId(context: Context, overrideName: String? = null): Int {
     val backgroundResName = if (!TextUtils.isEmpty(overrideName)) {
         overrideName
     } else {
         getString(context.applicationContext, "background")
     }
-    if (TextUtils.isEmpty(backgroundResName)) return 0
+    if (TextUtils.isEmpty(backgroundResName) || isFlutterAssetPath(backgroundResName)) return 0
 
     return context.resources.getIdentifier(
         backgroundResName,
@@ -57,25 +68,13 @@ fun getLogoResId(context: Context, overrideName: String? = null): Int {
     } else {
         getString(context.applicationContext, "logo")
     }
-    if (TextUtils.isEmpty(logoResName)) return 0
+    if (TextUtils.isEmpty(logoResName) || isFlutterAssetPath(logoResName)) return 0
 
     var resId = context.resources.getIdentifier(logoResName, "drawable", context.packageName)
     if (resId == 0) {
         resId = context.resources.getIdentifier(logoResName, "mipmap", context.packageName)
     }
     return resId
-}
-
-fun resolveDrawableOrAssetUrl(context: Context, value: String?): String? {
-    if (TextUtils.isEmpty(value)) return null
-    val raw = value!!.trim()
-    if (raw.startsWith("http://", true) || raw.startsWith("https://", true)) {
-        return raw
-    }
-    if (raw.startsWith("assets/") || raw.contains("/")) {
-        return "file:///android_asset/flutter_assets/$raw"
-    }
-    return null
 }
 
 fun getCircleBitmap(bitmap: Bitmap): Bitmap {
@@ -93,6 +92,22 @@ fun getCircleBitmap(bitmap: Bitmap): Bitmap {
 }
 
 fun getDefaultPhoto(context: Context): Bitmap {
+    val iconUrl = getConfiguredIconLoadUrl(context)
+    if (!TextUtils.isEmpty(iconUrl)) {
+        try {
+            // Synchronous decode from android_asset for notification large icon fallback
+            val assetKey = iconUrl!!
+                .removePrefix("file:///android_asset/")
+            if (assetKey.startsWith("flutter_assets/")) {
+                context.assets.open(assetKey).use { stream ->
+                    val decoded = BitmapFactory.decodeStream(stream)
+                    if (decoded != null) return getCircleBitmap(decoded)
+                }
+            }
+        } catch (_: Exception) {
+            // fall through to drawable placeholder
+        }
+    }
     return getCircleBitmap(
         BitmapFactory.decodeResource(
             context.resources,

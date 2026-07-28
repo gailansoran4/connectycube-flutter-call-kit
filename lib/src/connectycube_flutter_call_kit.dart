@@ -203,11 +203,17 @@ class ConnectycubeFlutterCallKit {
   }
 
   /// Sets the additional configs for the Call notification
-  /// [ringtone] - the name of the ringtone source (for Android it should be placed by path 'res/raw', for iOS it is a name of ringtone)
-  /// [icon] - the name of image in the `drawable` folder for Android and the name of Assets set for iOS
-  /// [background] - the name of image in the `drawable` folder used as full-screen incoming call background on Android, ignored for iOS
-  /// [notificationIcon] - the name of the image in the `drawable` folder, uses as Notification Small Icon for Android, ignored for iOS
-  /// [color] - the color in the format '#RRGGBB', uses as an Android Notification accent color, ignored for iOS
+  ///
+  /// Android accepts Flutter asset paths for [ringtone], [icon], [background], [logo]
+  /// (e.g. `assets/ringtone/call_ring`, `assets/image/call_icon.png`).
+  /// Plain names still resolve to `res/raw` / `drawable`.
+  ///
+  /// iOS: [ringtone] may be a bundled CallKit sound name **or** a Flutter asset
+  /// path; [icon] may be an Assets.xcassets name **or** a Flutter asset path for
+  /// the CallKit template icon. [background] / [logo] are Android-only.
+  ///
+  /// [notificationIcon] - drawable name for Android notification small icon
+  /// [color] - `#RRGGBB` Android notification accent color
   Future<void> updateConfig({
     String? ringtone,
     String? icon,
@@ -228,23 +234,26 @@ class ConnectycubeFlutterCallKit {
   }) {
     if (!Platform.isAndroid && !Platform.isIOS) return Future.value();
 
-    return _methodChannel.invokeMethod('updateConfig', {
-      'ringtone': ringtone,
-      'icon': icon,
-      'background': background,
-      'notification_icon': notificationIcon,
-      'color': color,
-      'logo': logo,
-      'background_color': backgroundColor,
-      'action_color': actionColor,
-      'text_color': textColor,
-      'missed_call_subtitle': missedCallSubtitle,
-      'missed_call_callback_text': missedCallCallbackText,
-      'show_missed_call_notification': showMissedCallNotification,
-      'show_missed_call_callback': showMissedCallCallback,
-      'missed_call_notification_channel_name': missedCallNotificationChannelName,
-      'default_duration_ms': defaultDurationMs,
-    });
+    return _methodChannel.invokeMethod(
+      'updateConfig',
+      debugBuildUpdateConfigArgs(
+        ringtone: ringtone,
+        icon: icon,
+        background: background,
+        notificationIcon: notificationIcon,
+        color: color,
+        logo: logo,
+        backgroundColor: backgroundColor,
+        actionColor: actionColor,
+        textColor: textColor,
+        missedCallSubtitle: missedCallSubtitle,
+        missedCallCallbackText: missedCallCallbackText,
+        showMissedCallNotification: showMissedCallNotification,
+        showMissedCallCallback: showMissedCallCallback,
+        missedCallNotificationChannelName: missedCallNotificationChannelName,
+        defaultDurationMs: defaultDurationMs,
+      ),
+    );
   }
 
   /// Returns VoIP token for iOS plaform.
@@ -458,6 +467,66 @@ class ConnectycubeFlutterCallKit {
       default:
         throw Exception("Unrecognized event");
     }
+  }
+
+  /// Test-only entry point for native event dispatch.
+  @visibleForTesting
+  static void debugProcessEvent(Map<String, dynamic> eventData) {
+    _processEvent(eventData);
+  }
+
+  /// Test-only: register foreground handlers without touching MethodChannel.
+  @visibleForTesting
+  static void debugSetForegroundHandlers({
+    CallEventHandler? onCallAccepted,
+    CallEventHandler? onCallRejected,
+    CallEventHandler? onCallIncoming,
+    CallEventHandler? onCallTimeout,
+    CallEventHandler? onMissedCallCallback,
+  }) {
+    _onCallAccepted = onCallAccepted;
+    _onCallRejected = onCallRejected;
+    _onCallIncoming = onCallIncoming;
+    _onCallTimeout = onCallTimeout;
+    _onMissedCallCallback = onMissedCallCallback;
+  }
+
+  /// Builds the `updateConfig` MethodChannel argument map (shared with tests).
+  @visibleForTesting
+  static Map<String, Object?> debugBuildUpdateConfigArgs({
+    String? ringtone,
+    String? icon,
+    String? background,
+    String? notificationIcon,
+    String? color,
+    String? logo,
+    String? backgroundColor,
+    String? actionColor,
+    String? textColor,
+    String? missedCallSubtitle,
+    String? missedCallCallbackText,
+    bool? showMissedCallNotification,
+    bool? showMissedCallCallback,
+    String? missedCallNotificationChannelName,
+    int? defaultDurationMs,
+  }) {
+    return {
+      'ringtone': ringtone,
+      'icon': icon,
+      'background': background,
+      'notification_icon': notificationIcon,
+      'color': color,
+      'logo': logo,
+      'background_color': backgroundColor,
+      'action_color': actionColor,
+      'text_color': textColor,
+      'missed_call_subtitle': missedCallSubtitle,
+      'missed_call_callback_text': missedCallCallbackText,
+      'show_missed_call_notification': showMissedCallNotification,
+      'show_missed_call_callback': showMissedCallCallback,
+      'missed_call_notification_channel_name': missedCallNotificationChannelName,
+      'default_duration_ms': defaultDurationMs,
+    };
   }
 }
 

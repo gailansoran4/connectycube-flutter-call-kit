@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 
 import 'android_call_kit_params.dart';
+import 'ios_call_kit_params.dart';
 import 'missed_call_notification_params.dart';
 
 /// {@template call_event}
@@ -24,6 +25,7 @@ class CallEvent {
     this.duration,
     this.missedCallNotification,
     this.android,
+    this.ios,
   });
 
   final String sessionId;
@@ -49,6 +51,10 @@ class CallEvent {
   /// Per-call Android customization (logo, background, ringtone, colors…).
   final AndroidCallKitParams? android;
 
+  /// Per-call iOS CallKit options (icon, ringtone name, handle type…).
+  /// Does **not** include custom full-screen UI (system CallKit only).
+  final IOSCallKitParams? ios;
+
   /// Used for exchanging additional data between the Call notification and your app,
   /// you will get this data in event callbacks (e.g. onCallAcceptedWhenTerminated,
   /// onCallAccepted, onCallRejectedWhenTerminated, or onCallRejected)
@@ -68,6 +74,7 @@ class CallEvent {
     int? duration,
     MissedCallNotificationParams? missedCallNotification,
     AndroidCallKitParams? android,
+    IOSCallKitParams? ios,
   }) {
     return CallEvent(
       sessionId: sessionId ?? this.sessionId,
@@ -83,6 +90,7 @@ class CallEvent {
       missedCallNotification:
           missedCallNotification ?? this.missedCallNotification,
       android: android ?? this.android,
+      ios: ios ?? this.ios,
     );
   }
 
@@ -107,6 +115,7 @@ class CallEvent {
       if (missedCallNotification != null)
         'missed_call_notification': missedCallNotification!.toMap(),
       if (android != null) 'android': android!.toMap(),
+      if (ios != null) 'ios': ios!.toMap(),
     };
   }
 
@@ -185,6 +194,9 @@ class CallEvent {
       android: _asStringKeyedMap(map['android']) == null
           ? null
           : AndroidCallKitParams.fromMap(_asStringKeyedMap(map['android'])),
+      ios: _asStringKeyedMap(map['ios']) == null
+          ? null
+          : IOSCallKitParams.fromMap(_asStringKeyedMap(map['ios'])),
     );
   }
 
@@ -207,6 +219,7 @@ class CallEvent {
         'duration: $duration, '
         'missedCallNotification: $missedCallNotification, '
         'android: $android, '
+        'ios: $ios, '
         'userInfo: $userInfo)';
   }
 
@@ -226,6 +239,7 @@ class CallEvent {
         other.duration == duration &&
         other.missedCallNotification == missedCallNotification &&
         other.android == android &&
+        other.ios == ios &&
         mapEquals(other.userInfo, userInfo);
   }
 
@@ -241,6 +255,7 @@ class CallEvent {
         (duration?.hashCode ?? 0) ^
         (missedCallNotification?.hashCode ?? 0) ^
         (android?.hashCode ?? 0) ^
+        (ios?.hashCode ?? 0) ^
         userInfo.hashCode;
   }
 }

@@ -9,6 +9,10 @@ class MissedCallNotificationManager: NSObject, UNUserNotificationCenterDelegate 
     static let missedCallCategory = "CQ_MISSED_CALL_CATEGORY"
     static let callbackAction = "CQ_CALLBACK_ACTION"
 
+    /// Sound name inside Library/Sounds (set when a Flutter asset ringtone in a
+    /// notification-compatible format — caf/wav/aiff — is resolved).
+    static var missedSoundName: String?
+
     var callbackListener: (([String: Any]) -> Void)?
 
     private var previousDelegate: UNUserNotificationCenterDelegate?
@@ -66,7 +70,11 @@ class MissedCallNotificationManager: NSObject, UNUserNotificationCenterDelegate 
         content.title = callerName
         content.subtitle = subtitle
         content.body = callType == 1 ? "Missed video call" : "Missed audio call"
-        content.sound = .default
+        if let soundName = MissedCallNotificationManager.missedSoundName {
+            content.sound = UNNotificationSound(named: UNNotificationSoundName(rawValue: soundName))
+        } else {
+            content.sound = .default
+        }
         content.categoryIdentifier = isShowCallback
             ? MissedCallNotificationManager.missedCallCategory
             : ""

@@ -21,8 +21,10 @@ import androidx.annotation.Nullable
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import com.bumptech.glide.Glide
 import com.connectycube.flutter.connectycube_flutter_call_kit.utils.getCallBackgroundResId
+import com.connectycube.flutter.connectycube_flutter_call_kit.utils.getConfiguredIconLoadUrl
 import com.connectycube.flutter.connectycube_flutter_call_kit.utils.getLogoResId
 import com.connectycube.flutter.connectycube_flutter_call_kit.utils.getPhotoPlaceholderResId
+import com.connectycube.flutter.connectycube_flutter_call_kit.utils.isFlutterAssetPath
 import com.connectycube.flutter.connectycube_flutter_call_kit.utils.resolveDrawableOrAssetUrl
 import com.google.android.material.imageview.ShapeableImageView
 import com.skyfishjy.library.RippleBackground
@@ -287,21 +289,30 @@ class IncomingCallActivity : Activity() {
 
         val backgroundImg: ImageView =
             findViewById(resources.getIdentifier("call_background_img", "id", packageName))
-        val bgDrawableName = if (!TextUtils.isEmpty(backgroundUrl) &&
-            !backgroundUrl!!.startsWith("http", true) &&
-            !backgroundUrl!!.contains("/")
-        ) {
+        val configuredBackground = if (TextUtils.isEmpty(backgroundUrl)) {
+            com.connectycube.flutter.connectycube_flutter_call_kit.utils.getString(
+                applicationContext,
+                "background"
+            )
+        } else {
             backgroundUrl
+        }
+        val bgDrawableName = if (!TextUtils.isEmpty(configuredBackground) &&
+            !isFlutterAssetPath(configuredBackground) &&
+            !configuredBackground!!.startsWith("http", true)
+        ) {
+            configuredBackground
         } else {
             null
         }
         val backgroundResId = getCallBackgroundResId(applicationContext, bgDrawableName)
-        val remoteBg = resolveDrawableOrAssetUrl(applicationContext, backgroundUrl)
+        val remoteBg = resolveDrawableOrAssetUrl(applicationContext, configuredBackground)
         when {
-            remoteBg != null || (backgroundUrl != null && backgroundUrl!!.startsWith("http", true)) -> {
+            remoteBg != null ||
+                (configuredBackground != null && configuredBackground.startsWith("http", true)) -> {
                 backgroundImg.visibility = View.VISIBLE
                 Glide.with(applicationContext)
-                    .load(remoteBg ?: backgroundUrl)
+                    .load(remoteBg ?: configuredBackground)
                     .into(backgroundImg)
             }
             backgroundResId != 0 -> {
@@ -314,18 +325,27 @@ class IncomingCallActivity : Activity() {
         val logoImg: ImageView =
             findViewById(resources.getIdentifier("call_logo_img", "id", packageName))
         if (isShowLogo) {
-            val logoDrawableName = if (!TextUtils.isEmpty(logoUrl) &&
-                !logoUrl!!.startsWith("http", true) &&
-                !logoUrl!!.contains("/")
-            ) {
+            val configuredLogo = if (TextUtils.isEmpty(logoUrl)) {
+                com.connectycube.flutter.connectycube_flutter_call_kit.utils.getString(
+                    applicationContext,
+                    "logo"
+                )
+            } else {
                 logoUrl
+            }
+            val logoDrawableName = if (!TextUtils.isEmpty(configuredLogo) &&
+                !isFlutterAssetPath(configuredLogo) &&
+                !configuredLogo!!.startsWith("http", true)
+            ) {
+                configuredLogo
             } else null
             val logoResId = getLogoResId(applicationContext, logoDrawableName)
-            val remoteLogo = resolveDrawableOrAssetUrl(applicationContext, logoUrl)
+            val remoteLogo = resolveDrawableOrAssetUrl(applicationContext, configuredLogo)
             when {
-                remoteLogo != null || (logoUrl != null && logoUrl!!.startsWith("http", true)) -> {
+                remoteLogo != null ||
+                    (configuredLogo != null && configuredLogo.startsWith("http", true)) -> {
                     logoImg.visibility = View.VISIBLE
-                    Glide.with(applicationContext).load(remoteLogo ?: logoUrl).into(logoImg)
+                    Glide.with(applicationContext).load(remoteLogo ?: configuredLogo).into(logoImg)
                 }
                 logoResId != 0 -> {
                     logoImg.setImageResource(logoResId)
@@ -362,15 +382,24 @@ class IncomingCallActivity : Activity() {
             findViewById(resources.getIdentifier("avatar_img", "id", packageName))
 
         val defaultPhotoResId = getPhotoPlaceholderResId(applicationContext)
+        val configuredIconUrl = getConfiguredIconLoadUrl(applicationContext)
 
-        if (!TextUtils.isEmpty(callPhoto)) {
-            Glide.with(applicationContext)
-                .load(resolveDrawableOrAssetUrl(applicationContext, callPhoto) ?: callPhoto)
-                .error(defaultPhotoResId)
-                .placeholder(defaultPhotoResId)
-                .into(avatarImg)
-        } else {
-            avatarImg.setImageResource(defaultPhotoResId)
+        when {
+            !TextUtils.isEmpty(callPhoto) -> {
+                Glide.with(applicationContext)
+                    .load(resolveDrawableOrAssetUrl(applicationContext, callPhoto) ?: callPhoto)
+                    .error(defaultPhotoResId)
+                    .placeholder(defaultPhotoResId)
+                    .into(avatarImg)
+            }
+            !TextUtils.isEmpty(configuredIconUrl) -> {
+                Glide.with(applicationContext)
+                    .load(configuredIconUrl)
+                    .error(defaultPhotoResId)
+                    .placeholder(defaultPhotoResId)
+                    .into(avatarImg)
+            }
+            else -> avatarImg.setImageResource(defaultPhotoResId)
         }
 
         val acceptButtonAnimation: RippleBackground =

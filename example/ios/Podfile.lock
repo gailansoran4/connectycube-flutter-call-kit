@@ -1,0 +1,22 @@
+PODS:
+  - connectycube_flutter_call_kit (2.8.2):
+    - Flutter
+  - Flutter (1.0.0)
+
+DEPENDENCIES:
+  - connectycube_flutter_call_kit (from `.symlinks/plugins/connectycube_flutter_call_kit/ios`)
+  - Flutter (from `Flutter`)
+
+EXTERNAL SOURCES:
+  connectycube_flutter_call_kit:
+    :path: ".symlinks/plugins/connectycube_flutter_call_kit/ios"
+  Flutter:
+    :path: Flutter
+
+SPEC CHECKSUMS:
+  connectycube_flutter_call_kit: 00f448d35f2e8f82c853fb582e83bb4f6dd353a5
+  Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
+
+PODFILE CHECKSUM: 0dbd5a87e0ace00c9610d2037ac22083a01f861d
+
+COCOAPODS: 1.16.2

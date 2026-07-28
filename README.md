@@ -82,26 +82,71 @@ ConnectycubeFlutterCallKit.onTokenRefreshed = (token) {
 ```
 ### Customize the plugin
 Customize ringtone, icons, colors, full-screen UI (Android), and missed-call notifications
-(parity with `flutter_callkit_incoming`):
+(parity with `flutter_callkit_incoming`).
+
+**Android** accepts Flutter asset paths (declare them in your app `pubspec.yaml`):
 
 ```dart
 ConnectycubeFlutterCallKit.instance.updateConfig(
-  ringtone: 'custom_ringtone', // Android: res/raw; iOS: bundled sound name
-  icon: Platform.isAndroid ? 'default_avatar' : 'CallKitIcon',
-  background: 'call_background', // Android full-screen background drawable
-  color: '#07711e', // Android notification accent
-  logo: 'call_logo', // Android full-screen logo drawable
+  ringtone: 'assets/ringtone/call_ring', // or call_ring.mp3 — tries .mp3/.wav/.ogg/.m4a
+  icon: 'assets/image/call_icon.png',
+  background: 'assets/image/call_background.png',
+  logo: 'assets/image/call_icon.png',
+  color: '#0955FA',
   backgroundColor: '#0955FA',
-  actionColor: '#0955FA',
-  textColor: '#FFFFFF',
-  missedCallSubtitle: 'Missed call',
-  missedCallCallbackText: 'Call back',
-  showMissedCallNotification: true,
-  showMissedCallCallback: true,
-  missedCallNotificationChannelName: 'Missed Call',
-  defaultDurationMs: 30000,
 );
+
+ConnectycubeFlutterCallKit.showCallNotification(CallEvent(
+  // ...
+  android: const AndroidCallKitParams(
+    isShowLogo: true,
+    logoUrl: 'assets/image/call_icon.png',
+    ringtonePath: 'assets/ringtone/call_ring',
+    backgroundUrl: 'assets/image/call_background.png',
+  ),
+));
 ```
+
+```yaml
+# pubspec.yaml
+flutter:
+  assets:
+    - assets/ringtone/call_ring.mp3
+    - assets/image/call_icon.png
+    - assets/image/call_background.png
+```
+
+Plain names (`ringtone_default`, `call_logo`) still resolve to Android `res/raw` / `drawable`.
+
+**iOS:** the CallKit ringtone accepts a **bundled** sound name (e.g. `Ringtone.caf`) **or** a Flutter asset path (e.g. `assets/ringtone/call_ring`) — the plugin resolves the asset inside the app bundle and passes its bundle-relative path to CallKit. If the sound is in a notification-compatible format (`.caf`/`.wav`/`.aiff`) it is also reused for the missed-call notification sound; `.mp3` will ring for the incoming call but the missed-call notification falls back to the default sound. Icon may be an Assets.xcassets name **or** a Flutter asset path for the CallKit template icon. Logo/background images are Android-only (iOS shows the system CallKit UI).
+
+Use per-call `ios:` (same idea as `android:`, but **no custom UI**):
+
+```dart
+ConnectycubeFlutterCallKit.showCallNotification(CallEvent(
+  // ...
+  android: const AndroidCallKitParams(
+    isShowLogo: true,
+    logoUrl: 'assets/image/call_icon.png',
+    ringtonePath: 'assets/ringtone/call_ring',
+    backgroundUrl: 'assets/image/call_background.png',
+  ),
+  ios: const IOSCallKitParams(
+    iconName: 'assets/image/call_icon.png', // or 'CallKitLogo' in Assets.xcassets
+    handleType: 'generic', // generic | number | email
+    supportsVideo: true,
+    ringtonePath: 'assets/ringtone/call_ring', // Flutter asset or bundled name (e.g. 'Ringtone.caf')
+    includesCallsInRecents: false,
+  ),
+));
+```
+
+| Feature | Android `AndroidCallKitParams` | iOS `IOSCallKitParams` |
+|---------|--------------------------------|-------------------------|
+| Full-screen logo / background / colors / labels | Yes | No (system CallKit UI) |
+| Ringtone from Flutter assets | Yes | Yes (asset path or bundled name; missed-call sound needs caf/wav/aiff) |
+| Icon | drawable / asset / URL | Assets.xcassets **or** Flutter asset |
+| Handle type / video / DTMF / hold flags | — | Yes |
 
 Per-call options (logo, background, ringtone, duration, missed notification):
 
@@ -121,10 +166,10 @@ ConnectycubeFlutterCallKit.showCallNotification(CallEvent(
   ),
   android: const AndroidCallKitParams(
     isShowLogo: true,
-    logoUrl: 'call_logo',
-    ringtonePath: 'ringtone_default',
+    logoUrl: 'assets/image/call_icon.png',
+    ringtonePath: 'assets/ringtone/call_ring',
     backgroundColor: '#0955FA',
-    backgroundUrl: 'call_background',
+    backgroundUrl: 'assets/image/call_background.png',
     textAccept: 'Accept',
     textDecline: 'Decline',
   ),

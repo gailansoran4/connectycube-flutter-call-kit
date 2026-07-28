@@ -8,6 +8,8 @@
 import Foundation
 import AVFoundation
 import CallKit
+import Flutter
+import UIKit
 
 enum CallEvent : String {
     case incomingCall = "incomingCall"
@@ -70,12 +72,14 @@ class CallKitController : NSObject {
     }
     private var timeoutTimers: [String: Timer] = [:]
     private var pendingTimeoutHandled: Set<String> = []
+    private static weak var sharedInstance: CallKitController?
     
     override init() {
         self.provider = CXProvider(configuration: CallKitController.providerConfiguration)
         self.callController = CXCallController()
         
         super.init()
+        CallKitController.sharedInstance = self
         self.provider.setDelegate(self, queue: nil)
 
         MissedCallNotificationManager.shared.callbackListener = { [weak self] args in
@@ -120,15 +124,16 @@ class CallKitController : NSObject {
         showMissedCallNotification: Bool? = nil,
         showMissedCallCallback: Bool? = nil
     ) {
-        if(ringtone != nil){
-            providerConfiguration.ringtoneSound = ringtone
+        if let ringtone = ringtone, !ringtone.isEmpty {
+            if let resolved = resolveRingtone(ringtone) {
+                providerConfiguration.ringtoneSound = resolved
+            }
         }
         
-        if(icon != nil){
-            let iconImage = UIImage(named: icon!)
-            let iconData = iconImage?.pngData()
-            
-            providerConfiguration.iconTemplateImageData = iconData
+        if let icon = icon, !icon.isEmpty {
+            if let image = loadCallKitIcon(named: icon) {
+                providerConfiguration.iconTemplateImageData = image.pngData()
+            }
         }
 
         if let duration = defaultDurationMs {
@@ -150,9 +155,165 @@ class CallKitController : NSObject {
         MissedCallNotificationManager.shared.setup(
             callbackTitle: sharedMissedCallbackText
         )
+
+        refreshProviderConfiguration()
+    }
+
+    /// Pushes the (possibly mutated) static configuration to the live CXProvider,
+    /// otherwise ringtone/icon changes made after init would never take effect.
+    static func refreshProviderConfiguration() {
+        sharedInstance?.provider.configuration = providerConfiguration
+    }
+
+    /// Resolves a ringtone value to something CallKit can play.
+    /// - Plain names (e.g. "Ringtone.caf") are used as-is (Xcode bundle lookup).
+    /// - Flutter asset paths (e.g. "assets/ringtone/call_ring.mp3", extension optional)
+    ///   are resolved inside the app bundle via the Flutter asset registry and passed
+    ///   as a bundle-relative path. The file is also copied to Library/Sounds so the
+    ///   missed-call notification can reuse the same sound.
+    private static func resolveRingtone(_ ringtone: String) -> String? {
+        if !ringtone.contains("/") {
+            return ringtone
+        }
+
+        let candidates: [String]
+        if (ringtone as NSString).pathExtension.isEmpty {
+            candidates = ["\(ringtone).caf", "\(ringtone).wav", "\(ringtone).aiff",
+                          "\(ringtone).mp3", "\(ringtone).m4a", ringtone]
+        } else {
+            candidates = [ringtone]
+        }
+
+        let bundlePath = Bundle.main.bundlePath
+        for candidate in candidates {
+            let lookupKey = FlutterDartProject.lookupKey(forAsset: candidate)
+            guard let path = Bundle.main.path(forResource: lookupKey, ofType: nil) else {
+                continue
+            }
+
+            let fileName = (path as NSString).lastPathComponent
+            if let soundName = copyToLibrarySounds(from: path, name: fileName) {
+                MissedCallNotificationManager.missedSoundName = soundName
+            }
+
+            if path.hasPrefix(bundlePath) {
+                // CallKit resolves ringtoneSound relative to the main bundle.
+                return String(path.dropFirst(bundlePath.count + 1))
+            }
+            return fileName
+        }
+
+        print("[CallKitController] ringtone asset not found in bundle: \(ringtone)")
+        return nil
+    }
+
+    /// Copies a sound file to Library/Sounds so UNNotificationSound(named:) can find it.
+    /// Returns the sound name usable with UNNotificationSound, or nil when the format
+    /// is not supported for notifications (e.g. mp3).
+    @discardableResult
+    private static func copyToLibrarySounds(from sourcePath: String, name: String) -> String? {
+        let ext = (name as NSString).pathExtension.lowercased()
+        guard ["caf", "wav", "aiff", "aif"].contains(ext) else { return nil }
+
+        guard let libraryDir = FileManager.default.urls(
+            for: .libraryDirectory, in: .userDomainMask
+        ).first else { return nil }
+
+        let soundsDir = libraryDir.appendingPathComponent("Sounds", isDirectory: true)
+        let destination = soundsDir.appendingPathComponent(name)
+        do {
+            try FileManager.default.createDirectory(
+                at: soundsDir, withIntermediateDirectories: true
+            )
+            if FileManager.default.fileExists(atPath: destination.path) {
+                try FileManager.default.removeItem(at: destination)
+            }
+            try FileManager.default.copyItem(
+                at: URL(fileURLWithPath: sourcePath), to: destination
+            )
+            return name
+        } catch {
+            print("[CallKitController] failed to copy sound to Library/Sounds: \(error)")
+            return nil
+        }
+    }
+
+    /// Loads CallKit template icon from Assets.xcassets name or Flutter asset path.
+    private static func loadCallKitIcon(named icon: String) -> UIImage? {
+        if let fromCatalog = UIImage(named: icon) {
+            return fromCatalog
+        }
+        // Flutter asset: assets/image/call_icon.png
+        let candidates: [String]
+        if icon.contains(".") {
+            candidates = [icon]
+        } else {
+            candidates = ["\(icon).png", "\(icon).jpg", "\(icon).jpeg", "\(icon).webp", icon]
+        }
+        for candidate in candidates {
+            let lookupKey = FlutterDartProject.lookupKey(forAsset: candidate)
+            if let path = Bundle.main.path(forResource: lookupKey, ofType: nil),
+               let image = UIImage(contentsOfFile: path) {
+                return image
+            }
+            // Fallback for some embedder layouts
+            if let url = Bundle.main.url(
+                forResource: (candidate as NSString).deletingPathExtension,
+                withExtension: (candidate as NSString).pathExtension.isEmpty
+                    ? "png"
+                    : (candidate as NSString).pathExtension,
+                subdirectory: "Frameworks/App.framework/flutter_assets"
+            ), let image = UIImage(contentsOfFile: url.path) {
+                return image
+            }
+        }
+        print("[CallKitController][updateConfig] icon not found: \(icon)")
+        return nil
     }
     
-    @objc func reportIncomingCall(
+    static func applyIOSParams(_ params: [String: Any]?) {
+        guard let params = params else { return }
+
+        if let ringtone = params["ringtone_path"] as? String, !ringtone.isEmpty {
+            if let resolved = resolveRingtone(ringtone) {
+                providerConfiguration.ringtoneSound = resolved
+            }
+        }
+        if let icon = params["icon_name"] as? String, !icon.isEmpty {
+            if let image = loadCallKitIcon(named: icon) {
+                providerConfiguration.iconTemplateImageData = image.pngData()
+            }
+        }
+        if let supportsVideo = params["supports_video"] as? Bool {
+            providerConfiguration.supportsVideo = supportsVideo
+        }
+        if let maxGroups = params["maximum_call_groups"] as? Int {
+            providerConfiguration.maximumCallGroups = maxGroups
+        }
+        if let maxPerGroup = params["maximum_calls_per_call_group"] as? Int {
+            providerConfiguration.maximumCallsPerCallGroup = maxPerGroup
+        }
+        if let includes = params["includes_calls_in_recents"] as? Bool {
+            if #available(iOS 11.0, *) {
+                providerConfiguration.includesCallsInRecents = includes
+            }
+        }
+        if let handleType = params["handle_type"] as? String {
+            switch handleType.lowercased() {
+            case "number":
+                providerConfiguration.supportedHandleTypes = [.phoneNumber]
+            case "email":
+                providerConfiguration.supportedHandleTypes = [.emailAddress]
+            default:
+                providerConfiguration.supportedHandleTypes = [.generic]
+            }
+        }
+
+        refreshProviderConfiguration()
+    }
+
+    // Not @objc: optional Int/Bool parameters cannot be represented in Objective-C.
+    func reportIncomingCall(
         uuid: String,
         callType: Int,
         callInitiatorId: Int,
@@ -164,18 +325,33 @@ class CallKitController : NSObject {
         missedSubtitle: String? = nil,
         missedCallbackText: String? = nil,
         missedShowCallback: Bool? = nil,
+        iosParams: [String: Any]? = nil,
         completion: ((Error?) -> Void)?
     ) {
         print("[CallKitController][reportIncomingCall] call data: \(uuid), \(callType), \(callInitiatorId), \(callInitiatorName), \(opponents), \(userInfo ?? "nil")")
+
+        CallKitController.applyIOSParams(iosParams)
         
         let update = CXCallUpdate()
         update.localizedCallerName = callInitiatorName
-        update.remoteHandle = CXHandle(type: .generic, value: uuid)
-        update.hasVideo = callType == 1
-        update.supportsGrouping = false
-        update.supportsUngrouping = false
-        update.supportsHolding = false
-        update.supportsDTMF = false
+
+        let handleType: CXHandle.HandleType
+        switch (iosParams?["handle_type"] as? String)?.lowercased() {
+        case "number":
+            handleType = .phoneNumber
+        case "email":
+            handleType = .emailAddress
+        default:
+            handleType = .generic
+        }
+        update.remoteHandle = CXHandle(type: handleType, value: uuid)
+
+        let supportsVideo = iosParams?["supports_video"] as? Bool
+        update.hasVideo = supportsVideo ?? (callType == 1)
+        update.supportsGrouping = iosParams?["supports_grouping"] as? Bool ?? false
+        update.supportsUngrouping = iosParams?["supports_ungrouping"] as? Bool ?? false
+        update.supportsHolding = iosParams?["supports_holding"] as? Bool ?? false
+        update.supportsDTMF = iosParams?["supports_dtmf"] as? Bool ?? false
         
         if (self.currentCallData["session_id"] == nil || self.currentCallData["session_id"] as! String != uuid) {
             print("[CallKitController][reportIncomingCall] report new call: \(uuid)")

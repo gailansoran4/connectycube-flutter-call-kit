@@ -89,11 +89,14 @@ class _CallKitExampleAppState extends State<CallKitExampleApp> {
       onMissedCallCallback: (event) async {
         _log('MISSED CALLBACK ${event.sessionId}');
       },
-      ringtone: (!kIsWeb && Platform.isAndroid) ? 'ringtone_default' : null,
-      icon: (!kIsWeb && Platform.isAndroid) ? 'call_logo' : 'CallKitLogo',
-      background: (!kIsWeb && Platform.isAndroid) ? 'call_background' : null,
+      // Flutter asset paths work on both platforms (iOS resolves them from the
+      // app bundle; note UNNotification sounds need caf/wav/aiff format).
+      ringtone: 'assets/ringtone/call_ring',
+      icon: 'assets/image/call_icon.png',
+      background:
+          (!kIsWeb && Platform.isAndroid) ? 'assets/image/call_background.png' : null,
       color: '#0955FA',
-      logo: (!kIsWeb && Platform.isAndroid) ? 'call_logo' : null,
+      logo: (!kIsWeb && Platform.isAndroid) ? 'assets/image/call_icon.png' : null,
       backgroundColor: '#0955FA',
       actionColor: '#0955FA',
       textColor: '#FFFFFF',
@@ -107,9 +110,12 @@ class _CallKitExampleAppState extends State<CallKitExampleApp> {
 
     // Enable logo on full-screen UI via persisted config.
     await ConnectycubeFlutterCallKit.instance.updateConfig(
-      logo: (!kIsWeb && Platform.isAndroid) ? 'call_logo' : null,
-      background: (!kIsWeb && Platform.isAndroid) ? 'call_background' : null,
-      ringtone: (!kIsWeb && Platform.isAndroid) ? 'ringtone_default' : null,
+      logo: (!kIsWeb && Platform.isAndroid) ? 'assets/image/call_icon.png' : null,
+      background: (!kIsWeb && Platform.isAndroid)
+          ? 'assets/image/call_background.png'
+          : null,
+      ringtone: 'assets/ringtone/call_ring',
+      icon: 'assets/image/call_icon.png',
       color: '#0955FA',
       backgroundColor: '#0955FA',
       showMissedCallNotification: true,
@@ -143,10 +149,10 @@ class _CallKitExampleAppState extends State<CallKitExampleApp> {
       ),
       android: AndroidCallKitParams(
         isShowLogo: true,
-        logoUrl: 'call_logo',
-        ringtonePath: 'ringtone_default',
+        logoUrl: 'assets/image/call_icon.png',
+        ringtonePath: 'assets/ringtone/call_ring',
         backgroundColor: '#0955FA',
-        backgroundUrl: 'call_background',
+        backgroundUrl: 'assets/image/call_background.png',
         actionColor: '#0955FA',
         textColor: '#FFFFFF',
         textAccept: 'Accept',
@@ -154,6 +160,15 @@ class _CallKitExampleAppState extends State<CallKitExampleApp> {
         durationMs: durationMs,
         missedCallNotificationChannelName: 'Missed Call',
         isShowFullLockedScreen: true,
+      ),
+      // iOS: system CallKit only — no logo/background/colors UI.
+      ios: const IOSCallKitParams(
+        iconName: 'assets/image/call_icon.png', // or Assets.xcassets name
+        handleType: 'generic',
+        supportsVideo: true,
+        // Flutter asset path also works; system default is used if not found.
+        ringtonePath: 'assets/ringtone/call_ring',
+        includesCallsInRecents: false,
       ),
     );
   }

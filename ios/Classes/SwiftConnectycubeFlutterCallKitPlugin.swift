@@ -119,10 +119,13 @@ public class SwiftConnectycubeFlutterCallKitPlugin: NSObject, FlutterPlugin {
                 missedCallbackText = missed["callback_text"] as? String
                 missedShowCallback = missed["is_show_callback"] as? Bool
             }
-            if let android = arguments["android"] as? [String: Any], duration == nil {
-                // duration_ms may live under android; prefer top-level duration
-            }
+            // Prefer top-level duration; fall back to android.duration_ms.
             let durationMs = duration ?? (arguments["android"] as? [String: Any])?["duration_ms"] as? Int
+            let iosParams = arguments["ios"] as? [String: Any]
+            // Apply per-call iOS ringtone/icon before reporting (also applied inside reportIncomingCall)
+            if let ios = iosParams {
+                CallKitController.applyIOSParams(ios)
+            }
             
             SwiftConnectycubeFlutterCallKitPlugin.callController.reportIncomingCall(
                 uuid: callId.lowercased(),
@@ -135,7 +138,8 @@ public class SwiftConnectycubeFlutterCallKitPlugin: NSObject, FlutterPlugin {
                 missedShow: missedShow,
                 missedSubtitle: missedSubtitle,
                 missedCallbackText: missedCallbackText,
-                missedShowCallback: missedShowCallback
+                missedShowCallback: missedShowCallback,
+                iosParams: iosParams
             ) { (error) in
                 print("[SwiftConnectycubeFlutterCallKitPlugin][handle] reportIncomingCall ERROR: \(error?.localizedDescription ?? "none")")
                 result(error == nil)

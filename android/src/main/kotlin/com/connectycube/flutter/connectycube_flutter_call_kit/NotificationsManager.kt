@@ -13,7 +13,6 @@ import android.media.RingtoneManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.provider.Settings
 import android.text.TextUtils
 import android.util.Log
 import androidx.core.app.NotificationCompat
@@ -25,6 +24,7 @@ import com.connectycube.flutter.connectycube_flutter_call_kit.utils.getDefaultPh
 import com.connectycube.flutter.connectycube_flutter_call_kit.utils.getPhotoPlaceholderResId
 import com.connectycube.flutter.connectycube_flutter_call_kit.utils.getString
 import com.connectycube.flutter.connectycube_flutter_call_kit.utils.resolveDrawableOrAssetUrl
+import com.connectycube.flutter.connectycube_flutter_call_kit.utils.resolveRingtoneUri
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -290,19 +290,6 @@ fun buildCallBundle(
     callData.putString(EXTRA_MISSED_ID, missedId)
     callData.putString(EXTRA_MISSED_CHANNEL_NAME, missedChannelName)
     return callData
-}
-
-fun resolveRingtoneUri(context: Context, ringtonePath: String?): Uri {
-    val custom = if (!TextUtils.isEmpty(ringtonePath)) {
-        ringtonePath
-    } else {
-        getString(context, "ringtone")
-    }
-    return if (!TextUtils.isEmpty(custom)) {
-        Uri.parse("android.resource://" + context.packageName + "/raw/" + custom)
-    } else {
-        Settings.System.DEFAULT_RINGTONE_URI
-    }
 }
 
 fun resolveMissedSmallIcon(context: Context, callType: Int): Int {
