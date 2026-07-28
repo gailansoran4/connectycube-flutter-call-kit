@@ -18,6 +18,8 @@ enum CallEvent : String {
     case startCall = "startCall"
     case setMuted = "setMuted"
     case setUnMuted = "setUnMuted"
+    case timeoutCall = "timeoutCall"
+    case missedCallCallback = "missedCallCallback"
 }
 
 enum CallEndedReason : String {
@@ -40,6 +42,34 @@ class CallKitController : NSObject {
     var currentCallData: [String: Any] = [:]
     private var callStates: [String:CallState] = [:]
     private var callsData: [String:[String:Any]] = [:]
+    private static var sharedDefaultDurationMs: Int = 60000
+    private static var sharedMissedShow: Bool = true
+    private static var sharedMissedSubtitle: String = "Missed call"
+    private static var sharedMissedCallbackText: String = "Call back"
+    private static var sharedMissedShowCallback: Bool = true
+
+    private var defaultDurationMs: Int {
+        get { CallKitController.sharedDefaultDurationMs }
+        set { CallKitController.sharedDefaultDurationMs = newValue }
+    }
+    private var defaultMissedShow: Bool {
+        get { CallKitController.sharedMissedShow }
+        set { CallKitController.sharedMissedShow = newValue }
+    }
+    private var defaultMissedSubtitle: String {
+        get { CallKitController.sharedMissedSubtitle }
+        set { CallKitController.sharedMissedSubtitle = newValue }
+    }
+    private var defaultMissedCallbackText: String {
+        get { CallKitController.sharedMissedCallbackText }
+        set { CallKitController.sharedMissedCallbackText = newValue }
+    }
+    private var defaultMissedShowCallback: Bool {
+        get { CallKitController.sharedMissedShowCallback }
+        set { CallKitController.sharedMissedShowCallback = newValue }
+    }
+    private var timeoutTimers: [String: Timer] = [:]
+    private var pendingTimeoutHandled: Set<String> = []
     
     override init() {
         self.provider = CXProvider(configuration: CallKitController.providerConfiguration)
@@ -47,6 +77,16 @@ class CallKitController : NSObject {
         
         super.init()
         self.provider.setDelegate(self, queue: nil)
+
+        MissedCallNotificationManager.shared.callbackListener = { [weak self] args in
+            guard let self = self else { return }
+            let uuidString = (args["session_id"] as? String) ?? UUID().uuidString
+            self.actionListener?(
+                .missedCallCallback,
+                UUID(uuidString: uuidString) ?? UUID(),
+                args
+            )
+        }
     }
     
     //TODO: construct configuration from flutter. pass into init over method channel
@@ -73,8 +113,12 @@ class CallKitController : NSObject {
     
     static func updateConfig(
         ringtone: String?,
-        icon: String?
-        
+        icon: String?,
+        defaultDurationMs: Int? = nil,
+        missedSubtitle: String? = nil,
+        missedCallbackText: String? = nil,
+        showMissedCallNotification: Bool? = nil,
+        showMissedCallCallback: Bool? = nil
     ) {
         if(ringtone != nil){
             providerConfiguration.ringtoneSound = ringtone
@@ -86,6 +130,26 @@ class CallKitController : NSObject {
             
             providerConfiguration.iconTemplateImageData = iconData
         }
+
+        if let duration = defaultDurationMs {
+            sharedDefaultDurationMs = duration
+        }
+        if let subtitle = missedSubtitle {
+            sharedMissedSubtitle = subtitle
+        }
+        if let callbackText = missedCallbackText {
+            sharedMissedCallbackText = callbackText
+        }
+        if let show = showMissedCallNotification {
+            sharedMissedShow = show
+        }
+        if let showCallback = showMissedCallCallback {
+            sharedMissedShowCallback = showCallback
+        }
+
+        MissedCallNotificationManager.shared.setup(
+            callbackTitle: sharedMissedCallbackText
+        )
     }
     
     @objc func reportIncomingCall(
@@ -95,6 +159,11 @@ class CallKitController : NSObject {
         callInitiatorName: String,
         opponents: [Int],
         userInfo: String?,
+        durationMs: Int? = nil,
+        missedShow: Bool? = nil,
+        missedSubtitle: String? = nil,
+        missedCallbackText: String? = nil,
+        missedShowCallback: Bool? = nil,
         completion: ((Error?) -> Void)?
     ) {
         print("[CallKitController][reportIncomingCall] call data: \(uuid), \(callType), \(callInitiatorId), \(callInitiatorName), \(opponents), \(userInfo ?? "nil")")
@@ -123,11 +192,17 @@ class CallKitController : NSObject {
                     self.currentCallData["caller_name"] = callInitiatorName
                     self.currentCallData["call_opponents"] = opponents.map { String($0) }.joined(separator: ",")
                     self.currentCallData["user_info"] = userInfo
+                    self.currentCallData["missed_show"] = missedShow ?? self.defaultMissedShow
+                    self.currentCallData["missed_subtitle"] = missedSubtitle ?? self.defaultMissedSubtitle
+                    self.currentCallData["missed_callback_text"] = missedCallbackText ?? self.defaultMissedCallbackText
+                    self.currentCallData["missed_show_callback"] = missedShowCallback ?? self.defaultMissedShowCallback
                     
                     self.callStates[uuid] = .pending
                     self.callsData[uuid] = self.currentCallData
+                    self.pendingTimeoutHandled.remove(uuid)
 
                     self.actionListener?(.incomingCall, UUID(uuidString: uuid)!, self.currentCallData)
+                    self.scheduleTimeout(uuid: uuid, durationMs: durationMs ?? self.defaultDurationMs)
                 }
             }
         } else if (self.currentCallData["session_id"] as! String == uuid) {
@@ -137,6 +212,50 @@ class CallKitController : NSObject {
             
             completion?(nil)
         }
+    }
+
+    private func scheduleTimeout(uuid: String, durationMs: Int) {
+        cancelTimeout(uuid: uuid)
+        let interval = TimeInterval(max(durationMs, 1000)) / 1000.0
+        let timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: false) { [weak self] _ in
+            self?.handleRingTimeout(uuid: uuid)
+        }
+        timeoutTimers[uuid] = timer
+    }
+
+    private func cancelTimeout(uuid: String) {
+        timeoutTimers[uuid]?.invalidate()
+        timeoutTimers.removeValue(forKey: uuid)
+    }
+
+    private func handleRingTimeout(uuid: String) {
+        guard callStates[uuid] == .pending, !pendingTimeoutHandled.contains(uuid) else { return }
+        pendingTimeoutHandled.insert(uuid)
+        cancelTimeout(uuid: uuid)
+
+        let data = callsData[uuid] ?? currentCallData
+        actionListener?(.timeoutCall, UUID(uuidString: uuid) ?? UUID(), data)
+        showMissedFromCallData(data)
+        reportCallEnded(uuid: UUID(uuidString: uuid)!, reason: .unanswered)
+    }
+
+    func showMissedFromCallData(_ data: [String: Any]) {
+        let sessionId = data["session_id"] as? String ?? ""
+        let show = data["missed_show"] as? Bool ?? defaultMissedShow
+        MissedCallNotificationManager.shared.showMissedCall(
+            sessionId: sessionId,
+            callerName: data["caller_name"] as? String ?? "",
+            callType: data["call_type"] as? Int ?? 0,
+            callerId: data["caller_id"] as? Int ?? 0,
+            opponents: data["call_opponents"] as? String ?? "",
+            photoUrl: data["photo_url"] as? String,
+            userInfo: data["user_info"] as? String,
+            showNotification: show,
+            subtitle: data["missed_subtitle"] as? String ?? defaultMissedSubtitle,
+            callbackText: data["missed_callback_text"] as? String ?? defaultMissedCallbackText,
+            isShowCallback: data["missed_show_callback"] as? Bool ?? defaultMissedShowCallback,
+            count: data["missed_count"] as? Int ?? 1
+        )
     }
     
     func reportOutgoingCall(uuid : UUID, finishedConnecting: Bool){
@@ -306,6 +425,7 @@ extension CallKitController: CXProviderDelegate {
             return
         }
 
+        cancelTimeout(uuid: uuid)
         configureAudioSession(active: true)
         callStates[uuid] = .accepted
         actionListener?(.answerCall, action.callUUID, self.currentCallData)
@@ -334,7 +454,11 @@ extension CallKitController: CXProviderDelegate {
             return
         }
 
-        actionListener?(.endCall, action.callUUID, currentCallData)
+        cancelTimeout(uuid: uuid)
+        // If still pending and not already handled as timeout, this is a decline.
+        if callStates[uuid] == .pending && !pendingTimeoutHandled.contains(uuid) {
+            actionListener?(.endCall, action.callUUID, currentCallData)
+        }
         callStates[uuid] = .rejected
 
         action.fulfill()

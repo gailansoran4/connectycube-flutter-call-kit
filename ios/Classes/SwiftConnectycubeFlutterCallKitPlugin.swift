@@ -78,7 +78,20 @@ public class SwiftConnectycubeFlutterCallKitPlugin: NSObject, FlutterPlugin {
             }
             let ringtone = arguments["ringtone"] as? String
             let icon = arguments["icon"] as? String
-            CallKitController.updateConfig(ringtone: ringtone, icon: icon)
+            let defaultDurationMs = arguments["default_duration_ms"] as? Int
+            let missedSubtitle = arguments["missed_call_subtitle"] as? String
+            let missedCallbackText = arguments["missed_call_callback_text"] as? String
+            let showMissed = arguments["show_missed_call_notification"] as? Bool
+            let showCallback = arguments["show_missed_call_callback"] as? Bool
+            CallKitController.updateConfig(
+                ringtone: ringtone,
+                icon: icon,
+                defaultDurationMs: defaultDurationMs,
+                missedSubtitle: missedSubtitle,
+                missedCallbackText: missedCallbackText,
+                showMissedCallNotification: showMissed,
+                showMissedCallCallback: showCallback
+            )
             
             result(true)
         }
@@ -95,11 +108,78 @@ public class SwiftConnectycubeFlutterCallKitPlugin: NSObject, FlutterPlugin {
             let callOpponents = callOpponentsString.components(separatedBy: ",")
                 .map { Int($0) ?? 0 }
             let userInfo = arguments["user_info"] as? String
+            let duration = arguments["duration"] as? Int
+            var missedShow: Bool? = nil
+            var missedSubtitle: String? = nil
+            var missedCallbackText: String? = nil
+            var missedShowCallback: Bool? = nil
+            if let missed = arguments["missed_call_notification"] as? [String: Any] {
+                missedShow = missed["show_notification"] as? Bool
+                missedSubtitle = missed["subtitle"] as? String
+                missedCallbackText = missed["callback_text"] as? String
+                missedShowCallback = missed["is_show_callback"] as? Bool
+            }
+            if let android = arguments["android"] as? [String: Any], duration == nil {
+                // duration_ms may live under android; prefer top-level duration
+            }
+            let durationMs = duration ?? (arguments["android"] as? [String: Any])?["duration_ms"] as? Int
             
-            SwiftConnectycubeFlutterCallKitPlugin.callController.reportIncomingCall(uuid: callId.lowercased(), callType: callType, callInitiatorId: callInitiatorId, callInitiatorName: callInitiatorName, opponents: callOpponents, userInfo: userInfo) { (error) in
+            SwiftConnectycubeFlutterCallKitPlugin.callController.reportIncomingCall(
+                uuid: callId.lowercased(),
+                callType: callType,
+                callInitiatorId: callInitiatorId,
+                callInitiatorName: callInitiatorName,
+                opponents: callOpponents,
+                userInfo: userInfo,
+                durationMs: durationMs,
+                missedShow: missedShow,
+                missedSubtitle: missedSubtitle,
+                missedCallbackText: missedCallbackText,
+                missedShowCallback: missedShowCallback
+            ) { (error) in
                 print("[SwiftConnectycubeFlutterCallKitPlugin][handle] reportIncomingCall ERROR: \(error?.localizedDescription ?? "none")")
                 result(error == nil)
             }
+        }
+        else if call.method == "showMissCallNotification" {
+            guard let arguments = arguments else {
+                result(FlutterError(code: "invalid_argument", message: "No data was provided.", details: nil))
+                return
+            }
+            let callId = arguments["session_id"] as! String
+            let callType = arguments["call_type"] as! Int
+            let callInitiatorId = arguments["caller_id"] as! Int
+            let callInitiatorName = arguments["caller_name"] as! String
+            let callOpponents = arguments["call_opponents"] as? String ?? ""
+            let userInfo = arguments["user_info"] as? String
+            let photoUrl = arguments["photo_url"] as? String
+            var show = true
+            var subtitle = "Missed call"
+            var callbackText = "Call back"
+            var showCallback = true
+            var count = 1
+            if let missed = arguments["missed_call_notification"] as? [String: Any] {
+                show = missed["show_notification"] as? Bool ?? true
+                subtitle = missed["subtitle"] as? String ?? subtitle
+                callbackText = missed["callback_text"] as? String ?? callbackText
+                showCallback = missed["is_show_callback"] as? Bool ?? true
+                count = missed["count"] as? Int ?? 1
+            }
+            MissedCallNotificationManager.shared.showMissedCall(
+                sessionId: callId.lowercased(),
+                callerName: callInitiatorName,
+                callType: callType,
+                callerId: callInitiatorId,
+                opponents: callOpponents,
+                photoUrl: photoUrl,
+                userInfo: userInfo,
+                showNotification: show,
+                subtitle: subtitle,
+                callbackText: callbackText,
+                isShowCallback: showCallback,
+                count: count
+            )
+            result(true)
         }
         else if call.method == "reportCallAccepted" {
             guard let arguments = arguments, let callId = arguments["session_id"] as? String else {

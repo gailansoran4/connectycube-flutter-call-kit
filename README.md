@@ -21,6 +21,9 @@ getting token and displaying the Incoming call screen.
 - getting the data about the current call during the call session
 - some customizations according to your app needs (ringtone, app icon, accent color(for Android))
 - checking and changing the access to the `Manifest.permission.USE_FULL_SCREEN_INTENT` permission (for Android 14 and above)
+- missed-call notifications with optional **Call back** action (Android + iOS)
+- Android full-screen customization: logo, background color/image, button labels, ring duration
+- timeout → missed-call flow and `onMissedCallCallback` / `onCallTimeout` events
 
 
 <kbd><img alt="Flutter P2P Calls code sample, incoming call in background Android" src="https://developers.connectycube.com/images/code_samples/flutter/background_call_android.png" height="440" /></kbd> 
@@ -78,15 +81,60 @@ ConnectycubeFlutterCallKit.onTokenRefreshed = (token) {
 };
 ```
 ### Customize the plugin
-We added a helpful method for customization the plugin according to your needs. At this moment you 
-can customize the ringtone, application icon, noitification small icon (Android only) 
-and notification accent color (Android only). Use the next method for it:
+Customize ringtone, icons, colors, full-screen UI (Android), and missed-call notifications
+(parity with `flutter_callkit_incoming`):
 
 ```dart
 ConnectycubeFlutterCallKit.instance.updateConfig(
-  ringtone: 'custom_ringtone', 
-  icon: Platform.isAndroid ? 'default_avatar' : 'CallKitIcon', // is used as an avatar placeholder for Android and as the app icon for iOS
-  color: '#07711e');
+  ringtone: 'custom_ringtone', // Android: res/raw; iOS: bundled sound name
+  icon: Platform.isAndroid ? 'default_avatar' : 'CallKitIcon',
+  background: 'call_background', // Android full-screen background drawable
+  color: '#07711e', // Android notification accent
+  logo: 'call_logo', // Android full-screen logo drawable
+  backgroundColor: '#0955FA',
+  actionColor: '#0955FA',
+  textColor: '#FFFFFF',
+  missedCallSubtitle: 'Missed call',
+  missedCallCallbackText: 'Call back',
+  showMissedCallNotification: true,
+  showMissedCallCallback: true,
+  missedCallNotificationChannelName: 'Missed Call',
+  defaultDurationMs: 30000,
+);
+```
+
+Per-call options (logo, background, ringtone, duration, missed notification):
+
+```dart
+ConnectycubeFlutterCallKit.showCallNotification(CallEvent(
+  sessionId: sessionId,
+  callType: callType,
+  callerId: callerId,
+  callerName: callerName,
+  opponentsIds: opponentsIds,
+  duration: 30000,
+  missedCallNotification: const MissedCallNotificationParams(
+    showNotification: true,
+    subtitle: 'Missed call',
+    callbackText: 'Call back',
+    isShowCallback: true,
+  ),
+  android: const AndroidCallKitParams(
+    isShowLogo: true,
+    logoUrl: 'call_logo',
+    ringtonePath: 'ringtone_default',
+    backgroundColor: '#0955FA',
+    backgroundUrl: 'call_background',
+    textAccept: 'Accept',
+    textDecline: 'Decline',
+  ),
+));
+```
+
+Show a missed-call notification manually (body tap opens the app; **Call back** fires `onMissedCallCallback`):
+
+```dart
+ConnectycubeFlutterCallKit.showMissCallNotification(callEvent);
 ```
 
 #### [Android only] Notification icon customisation
@@ -136,6 +184,8 @@ ConnectycubeFlutterCallKit.instance.init(
     onCallAccepted: _onCallAccepted,
     onCallRejected: _onCallRejected,
     onCallIncoming: _onCallIncoming,
+    onCallTimeout: _onCallTimeout,
+    onMissedCallCallback: _onMissedCallCallback,
 );
 
 Future<void> _onCallAccepted(CallEvent callEvent) async {
@@ -146,8 +196,16 @@ Future<void> _onCallRejected(CallEvent callEvent) async {
     // the call was rejected
 }
 
-Future<void> _onCallRejected(CallEvent callEvent) async {
+Future<void> _onCallIncoming(CallEvent callEvent) async {
     // the Incoming call screen/notification was shown for user
+}
+
+Future<void> _onCallTimeout(CallEvent callEvent) async {
+    // ring duration elapsed; missed notification may be shown
+}
+
+Future<void> _onMissedCallCallback(CallEvent callEvent) async {
+    // user tapped "Call back" on the missed-call notification
 }
 ```
 
@@ -157,8 +215,10 @@ Future<void> _onCallRejected(CallEvent callEvent) async {
 ConnectycubeFlutterCallKit.onCallRejectedWhenTerminated = onCallRejectedWhenTerminated;
 ConnectycubeFlutterCallKit.onCallAcceptedWhenTerminated = onCallAcceptedWhenTerminated;
 ConnectycubeFlutterCallKit.onCallIncomingWhenTerminated = onCallIncomingWhenTerminated;
+ConnectycubeFlutterCallKit.onMissedCallCallbackWhenTerminated = onMissedCallCallbackWhenTerminated;
 ```
 
+See [`example/README.md`](example/README.md) for the full FG/BG/terminated manual test matrix.
 !> Attention: the functions `onCallRejectedWhenTerminated`, `onCallAcceptedWhenTerminated` and `onCallIncomingWhenTerminated` must 
 be a top-level functions and cannot be anonymous. Mark these callbacks with the `@pragma('vm:entry-point')` 
 annotation to allow using them from the native code.

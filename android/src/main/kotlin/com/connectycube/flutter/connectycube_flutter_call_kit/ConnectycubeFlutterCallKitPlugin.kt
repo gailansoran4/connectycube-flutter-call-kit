@@ -128,6 +128,8 @@ class ConnectycubeFlutterCallKitPlugin : FlutterPlugin, MethodCallHandler,
                     saveBackgroundAcceptHandler(applicationContext, userCallbackHandle)
                 } else if (INCOMING_IN_BACKGROUND == userCallbackHandleName) {
                     saveBackgroundIncomingCallHandler(applicationContext, userCallbackHandle)
+                } else if (MISSED_CALLBACK_IN_BACKGROUND == userCallbackHandleName) {
+                    saveBackgroundMissedCallbackHandler(applicationContext, userCallbackHandle)
                 }
 
                 ConnectycubeFlutterBgPerformingService.startBackgroundIsolate(
@@ -137,8 +139,8 @@ class ConnectycubeFlutterCallKitPlugin : FlutterPlugin, MethodCallHandler,
 
             "showCallNotification" -> {
                 try {
-                    @Suppress("UNCHECKED_CAST") val arguments: Map<String, Any> =
-                        call.arguments as Map<String, Any>
+                    @Suppress("UNCHECKED_CAST") val arguments: Map<String, Any?> =
+                        call.arguments as Map<String, Any?>
                     val callId = arguments["session_id"] as String
 
                     if (CALL_STATE_UNKNOWN != getCallState(applicationContext, callId)) {
@@ -146,16 +148,36 @@ class ConnectycubeFlutterCallKitPlugin : FlutterPlugin, MethodCallHandler,
                         return
                     }
 
-                    val callType = arguments["call_type"] as Int
-                    val callInitiatorId = arguments["caller_id"] as Int
+                    val callType = CallParamsHelper.readInt(arguments["call_type"])
+                    val callInitiatorId = CallParamsHelper.readInt(arguments["caller_id"])
                     val callInitiatorName = arguments["caller_name"] as String
                     val callOpponents = ArrayList((arguments["call_opponents"] as String)
                         .split(',')
+                        .filter { it.isNotBlank() }
                         .map { it.toInt() })
                     val callPhoto = arguments["photo_url"] as String?
                     val userInfo = arguments["user_info"] as String
-                    val acceptButtonLabel = arguments["accept_button_label"] as String?
-                    val rejectButtonLabel = arguments["reject_button_label"] as String?
+                    val acceptButtonLabel = CallParamsHelper.acceptLabel(arguments)
+                    val rejectButtonLabel = CallParamsHelper.rejectLabel(arguments)
+                    val durationMs = CallParamsHelper.durationMs(arguments, applicationContext!!)
+                    val ringtonePath = CallParamsHelper.ringtonePath(arguments, applicationContext!!)
+                    val backgroundColor = CallParamsHelper.backgroundColor(arguments, applicationContext!!)
+                    val backgroundUrl = CallParamsHelper.backgroundUrl(arguments, applicationContext!!)
+                    val logoUrl = CallParamsHelper.logoUrl(arguments, applicationContext!!)
+                    val isShowLogo = CallParamsHelper.isShowLogo(arguments, applicationContext!!)
+                    val textColor = CallParamsHelper.textColor(arguments, applicationContext!!)
+                    val actionColor = CallParamsHelper.actionColor(arguments, applicationContext!!)
+                    val channelName = CallParamsHelper.incomingChannelName(arguments, applicationContext!!)
+                    val missedShow = CallParamsHelper.missedShow(arguments, applicationContext!!)
+                    val missedSubtitle = CallParamsHelper.missedSubtitle(arguments, applicationContext!!)
+                    val missedCallbackText =
+                        CallParamsHelper.missedCallbackText(arguments, applicationContext!!)
+                    val missedShowCallback =
+                        CallParamsHelper.missedShowCallback(arguments, applicationContext!!)
+                    val missedCount = CallParamsHelper.missedCount(arguments)
+                    val missedId = CallParamsHelper.missedId(arguments, callId)
+                    val missedChannelName =
+                        CallParamsHelper.missedChannelName(arguments, applicationContext!!)
 
                     showCallNotification(
                         applicationContext!!,
@@ -167,7 +189,23 @@ class ConnectycubeFlutterCallKitPlugin : FlutterPlugin, MethodCallHandler,
                         callPhoto,
                         userInfo,
                         acceptButtonLabel,
-                        rejectButtonLabel
+                        rejectButtonLabel,
+                        durationMs,
+                        ringtonePath,
+                        backgroundColor,
+                        backgroundUrl,
+                        logoUrl,
+                        isShowLogo,
+                        textColor,
+                        actionColor,
+                        channelName,
+                        missedShow,
+                        missedSubtitle,
+                        missedCallbackText,
+                        missedShowCallback,
+                        missedCount,
+                        missedId,
+                        missedChannelName
                     )
 
                     saveCallState(applicationContext, callId, CALL_STATE_PENDING)
@@ -180,21 +218,125 @@ class ConnectycubeFlutterCallKitPlugin : FlutterPlugin, MethodCallHandler,
                 }
             }
 
+            "showMissCallNotification" -> {
+                try {
+                    @Suppress("UNCHECKED_CAST") val arguments: Map<String, Any?> =
+                        call.arguments as Map<String, Any?>
+                    val callId = arguments["session_id"] as String
+                    val callType = CallParamsHelper.readInt(arguments["call_type"])
+                    val callInitiatorId = CallParamsHelper.readInt(arguments["caller_id"])
+                    val callInitiatorName = arguments["caller_name"] as String
+                    val callOpponents = ArrayList((arguments["call_opponents"] as String? ?: "")
+                        .split(',')
+                        .filter { it.isNotBlank() }
+                        .map { it.toInt() })
+                    val callPhoto = arguments["photo_url"] as String?
+                    val userInfo = arguments["user_info"] as String? ?: "{}"
+
+                    showMissCallNotification(
+                        applicationContext!!,
+                        callId,
+                        callType,
+                        callInitiatorId,
+                        callInitiatorName,
+                        callOpponents,
+                        callPhoto,
+                        userInfo,
+                        CallParamsHelper.missedShow(arguments, applicationContext!!),
+                        CallParamsHelper.missedSubtitle(arguments, applicationContext!!),
+                        CallParamsHelper.missedCallbackText(arguments, applicationContext!!),
+                        CallParamsHelper.missedShowCallback(arguments, applicationContext!!),
+                        CallParamsHelper.missedCount(arguments),
+                        CallParamsHelper.missedId(arguments, callId),
+                        CallParamsHelper.missedChannelName(arguments, applicationContext!!),
+                        CallParamsHelper.actionColor(arguments, applicationContext!!)
+                    )
+                    result.success(null)
+                } catch (e: Exception) {
+                    result.error("ERROR", e.message, "")
+                }
+            }
+
             "updateConfig" -> {
                 try {
-                    @Suppress("UNCHECKED_CAST") val arguments: Map<String, Any> =
-                        call.arguments as Map<String, Any>
-                    val ringtone = arguments["ringtone"] as String?
-                    val icon = arguments["icon"] as String?
-                    val background = arguments["background"] as String?
-                    val notificationIcon = arguments["notification_icon"] as String?
-                    val color = arguments["color"] as String?
+                    @Suppress("UNCHECKED_CAST") val arguments: Map<String, Any?> =
+                        call.arguments as Map<String, Any?>
+                    putString(applicationContext!!, "ringtone", arguments["ringtone"] as String?)
+                    putString(applicationContext!!, "icon", arguments["icon"] as String?)
+                    putString(applicationContext!!, "background", arguments["background"] as String?)
+                    putString(
+                        applicationContext!!,
+                        "notification_icon",
+                        arguments["notification_icon"] as String?
+                    )
+                    putString(applicationContext!!, "color", arguments["color"] as String?)
+                    putString(applicationContext!!, "logo", arguments["logo"] as String?)
+                    putString(
+                        applicationContext!!,
+                        "background_color",
+                        arguments["background_color"] as String?
+                    )
+                    putString(
+                        applicationContext!!,
+                        "action_color",
+                        arguments["action_color"] as String?
+                    )
+                    putString(applicationContext!!, "text_color", arguments["text_color"] as String?)
+                    putString(
+                        applicationContext!!,
+                        "missed_call_subtitle",
+                        arguments["missed_call_subtitle"] as String?
+                    )
+                    putString(
+                        applicationContext!!,
+                        "missed_call_callback_text",
+                        arguments["missed_call_callback_text"] as String?
+                    )
+                    putString(
+                        applicationContext!!,
+                        "missed_call_notification_channel_name",
+                        arguments["missed_call_notification_channel_name"] as String?
+                    )
+                    putString(
+                        applicationContext!!,
+                        "incoming_call_notification_channel_name",
+                        arguments["incoming_call_notification_channel_name"] as String?
+                    )
 
-                    putString(applicationContext!!, "ringtone", ringtone)
-                    putString(applicationContext!!, "icon", icon)
-                    putString(applicationContext!!, "background", background)
-                    putString(applicationContext!!, "notification_icon", notificationIcon)
-                    putString(applicationContext!!, "color", color)
+                    if (arguments.containsKey("show_missed_call_notification") &&
+                        arguments["show_missed_call_notification"] != null
+                    ) {
+                        putBoolean(
+                            applicationContext!!,
+                            "show_missed_call_notification",
+                            arguments["show_missed_call_notification"] as Boolean
+                        )
+                    }
+                    if (arguments.containsKey("show_missed_call_callback") &&
+                        arguments["show_missed_call_callback"] != null
+                    ) {
+                        putBoolean(
+                            applicationContext!!,
+                            "show_missed_call_callback",
+                            arguments["show_missed_call_callback"] as Boolean
+                        )
+                    }
+                    if (arguments.containsKey("is_show_logo") && arguments["is_show_logo"] != null) {
+                        putBoolean(
+                            applicationContext!!,
+                            "is_show_logo",
+                            arguments["is_show_logo"] as Boolean
+                        )
+                    }
+                    if (arguments.containsKey("default_duration_ms") &&
+                        arguments["default_duration_ms"] != null
+                    ) {
+                        putLong(
+                            applicationContext!!,
+                            "default_duration_ms",
+                            CallParamsHelper.readLong(arguments["default_duration_ms"], DEFAULT_CALL_DURATION_MS)
+                        )
+                    }
 
                     result.success(null)
                 } catch (e: Exception) {
@@ -535,6 +677,22 @@ fun getBackgroundRejectHandler(applicationContext: Context?): Long {
     return getLong(applicationContext, "background_callback_reject")
 }
 
+fun saveBackgroundMissedCallbackHandler(applicationContext: Context?, callbackId: Long) {
+    if (applicationContext == null) return
+
+    try {
+        putLong(applicationContext, "background_callback_missed", callbackId)
+    } catch (e: Exception) {
+        // ignore
+    }
+}
+
+fun getBackgroundMissedCallbackHandler(applicationContext: Context?): Long {
+    if (applicationContext == null) return -1L
+
+    return getLong(applicationContext, "background_callback_missed")
+}
+
 fun processCallEnded(applicationContext: Context?, sessionId: String) {
     if (applicationContext == null) return
 
@@ -577,6 +735,8 @@ class CallStreamHandler(private var context: Context) : EventChannel.StreamHandl
         intentFilter.addAction(ACTION_CALL_REJECT)
         intentFilter.addAction(ACTION_CALL_ACCEPT)
         intentFilter.addAction(ACTION_CALL_INCOMING)
+        intentFilter.addAction(ACTION_CALL_TIMEOUT)
+        intentFilter.addAction(ACTION_CALL_CALLBACK)
         localBroadcastManager.registerReceiver(this, intentFilter)
     }
 
@@ -599,7 +759,12 @@ class CallStreamHandler(private var context: Context) : EventChannel.StreamHandl
 
             events?.success(parameters)
             return
-        } else if (ACTION_CALL_REJECT != action && ACTION_CALL_ACCEPT != action && ACTION_CALL_INCOMING != action) {
+        } else if (ACTION_CALL_REJECT != action &&
+            ACTION_CALL_ACCEPT != action &&
+            ACTION_CALL_INCOMING != action &&
+            ACTION_CALL_TIMEOUT != action &&
+            ACTION_CALL_CALLBACK != action
+        ) {
             return
         }
 
@@ -645,6 +810,16 @@ class CallStreamHandler(private var context: Context) : EventChannel.StreamHandl
 
             ACTION_CALL_INCOMING -> {
                 callbackData["event"] = "incomingCall"
+                events?.success(callbackData)
+            }
+
+            ACTION_CALL_TIMEOUT -> {
+                callbackData["event"] = "timeoutCall"
+                events?.success(callbackData)
+            }
+
+            ACTION_CALL_CALLBACK -> {
+                callbackData["event"] = "missedCallCallback"
                 events?.success(callbackData)
             }
         }

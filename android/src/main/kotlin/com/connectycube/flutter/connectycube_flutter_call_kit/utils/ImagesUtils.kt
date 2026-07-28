@@ -36,8 +36,12 @@ fun getPhotoPlaceholderResId(context: Context): Int {
     }
 }
 
-fun getCallBackgroundResId(context: Context): Int {
-    val backgroundResName = getString(context.applicationContext, "background")
+fun getCallBackgroundResId(context: Context, overrideName: String? = null): Int {
+    val backgroundResName = if (!TextUtils.isEmpty(overrideName)) {
+        overrideName
+    } else {
+        getString(context.applicationContext, "background")
+    }
     if (TextUtils.isEmpty(backgroundResName)) return 0
 
     return context.resources.getIdentifier(
@@ -45,6 +49,33 @@ fun getCallBackgroundResId(context: Context): Int {
         "drawable",
         context.packageName
     )
+}
+
+fun getLogoResId(context: Context, overrideName: String? = null): Int {
+    val logoResName = if (!TextUtils.isEmpty(overrideName)) {
+        overrideName
+    } else {
+        getString(context.applicationContext, "logo")
+    }
+    if (TextUtils.isEmpty(logoResName)) return 0
+
+    var resId = context.resources.getIdentifier(logoResName, "drawable", context.packageName)
+    if (resId == 0) {
+        resId = context.resources.getIdentifier(logoResName, "mipmap", context.packageName)
+    }
+    return resId
+}
+
+fun resolveDrawableOrAssetUrl(context: Context, value: String?): String? {
+    if (TextUtils.isEmpty(value)) return null
+    val raw = value!!.trim()
+    if (raw.startsWith("http://", true) || raw.startsWith("https://", true)) {
+        return raw
+    }
+    if (raw.startsWith("assets/") || raw.contains("/")) {
+        return "file:///android_asset/flutter_assets/$raw"
+    }
+    return null
 }
 
 fun getCircleBitmap(bitmap: Bitmap): Bitmap {

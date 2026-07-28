@@ -6,6 +6,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -20,7 +21,9 @@ import androidx.annotation.Nullable
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import com.bumptech.glide.Glide
 import com.connectycube.flutter.connectycube_flutter_call_kit.utils.getCallBackgroundResId
+import com.connectycube.flutter.connectycube_flutter_call_kit.utils.getLogoResId
 import com.connectycube.flutter.connectycube_flutter_call_kit.utils.getPhotoPlaceholderResId
+import com.connectycube.flutter.connectycube_flutter_call_kit.utils.resolveDrawableOrAssetUrl
 import com.google.android.material.imageview.ShapeableImageView
 import com.skyfishjy.library.RippleBackground
 
@@ -28,7 +31,13 @@ import com.skyfishjy.library.RippleBackground
 fun createStartIncomingScreenIntent(
     context: Context, callId: String, callType: Int, callInitiatorId: Int,
     callInitiatorName: String, opponents: ArrayList<Int>, callPhoto: String?, userInfo: String,
-    acceptButtonLabel: String? = null, rejectButtonLabel: String? = null
+    acceptButtonLabel: String? = null, rejectButtonLabel: String? = null,
+    durationMs: Long = DEFAULT_CALL_DURATION_MS,
+    backgroundColor: String? = null,
+    backgroundUrl: String? = null,
+    logoUrl: String? = null,
+    isShowLogo: Boolean = false,
+    textColor: String? = null
 ): Intent {
     val intent = Intent(context, IncomingCallActivity::class.java)
     intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
@@ -41,6 +50,12 @@ fun createStartIncomingScreenIntent(
     intent.putExtra(EXTRA_CALL_USER_INFO, userInfo)
     intent.putExtra(EXTRA_ACCEPT_BUTTON_LABEL, acceptButtonLabel)
     intent.putExtra(EXTRA_REJECT_BUTTON_LABEL, rejectButtonLabel)
+    intent.putExtra(EXTRA_CALL_DURATION, durationMs)
+    intent.putExtra(EXTRA_BACKGROUND_COLOR, backgroundColor)
+    intent.putExtra(EXTRA_BACKGROUND_URL, backgroundUrl)
+    intent.putExtra(EXTRA_LOGO_URL, logoUrl)
+    intent.putExtra(EXTRA_IS_SHOW_LOGO, isShowLogo)
+    intent.putExtra(EXTRA_TEXT_COLOR, textColor)
     return intent
 }
 
@@ -57,6 +72,66 @@ class IncomingCallActivity : Activity() {
     private var callUserInfo: String? = null
     private var acceptButtonLabel: String? = null
     private var rejectButtonLabel: String? = null
+    private var durationMs: Long = DEFAULT_CALL_DURATION_MS
+    private var backgroundColor: String? = null
+    private var backgroundUrl: String? = null
+    private var logoUrl: String? = null
+    private var isShowLogo: Boolean = false
+    private var textColor: String? = null
+
+    private val timeoutHandler = Handler(Looper.getMainLooper())
+    private val timeoutRunnable = Runnable {
+        val bundle = Bundle()
+        bundle.putString(EXTRA_CALL_ID, callId)
+        bundle.putInt(EXTRA_CALL_TYPE, callType)
+        bundle.putInt(EXTRA_CALL_INITIATOR_ID, callInitiatorId)
+        bundle.putString(EXTRA_CALL_INITIATOR_NAME, callInitiatorName)
+        bundle.putIntegerArrayList(EXTRA_CALL_OPPONENTS, callOpponents)
+        bundle.putString(EXTRA_CALL_PHOTO, callPhoto)
+        bundle.putString(EXTRA_CALL_USER_INFO, callUserInfo)
+        val timeoutIntent = Intent(this, EventReceiver::class.java)
+        timeoutIntent.action = ACTION_CALL_TIMEOUT
+        timeoutIntent.putExtras(bundle)
+        // Restore missed params from saved call data if available
+        callId?.let { id ->
+            val data = getCallData(applicationContext, id)
+            if (data != null) {
+                timeoutIntent.putExtra(
+                    EXTRA_MISSED_SHOW,
+                    CallParamsHelper.missedShow(data as Map<String, Any?>, applicationContext)
+                )
+                timeoutIntent.putExtra(
+                    EXTRA_MISSED_SUBTITLE,
+                    CallParamsHelper.missedSubtitle(data, applicationContext)
+                )
+                timeoutIntent.putExtra(
+                    EXTRA_MISSED_CALLBACK_TEXT,
+                    CallParamsHelper.missedCallbackText(data, applicationContext)
+                )
+                timeoutIntent.putExtra(
+                    EXTRA_MISSED_SHOW_CALLBACK,
+                    CallParamsHelper.missedShowCallback(data, applicationContext)
+                )
+                timeoutIntent.putExtra(
+                    EXTRA_MISSED_COUNT,
+                    CallParamsHelper.missedCount(data)
+                )
+                timeoutIntent.putExtra(
+                    EXTRA_MISSED_ID,
+                    CallParamsHelper.missedId(data, id)
+                )
+                timeoutIntent.putExtra(
+                    EXTRA_MISSED_CHANNEL_NAME,
+                    CallParamsHelper.missedChannelName(data, applicationContext)
+                )
+                timeoutIntent.putExtra(
+                    EXTRA_ACTION_COLOR,
+                    CallParamsHelper.actionColor(data, applicationContext)
+                )
+            }
+        }
+        applicationContext.sendBroadcast(timeoutIntent)
+    }
 
 
     override fun onCreate(@Nullable savedInstanceState: Bundle?) {
@@ -107,6 +182,7 @@ class IncomingCallActivity : Activity() {
         initUi()
         initCallStateReceiver()
         registerCallStateReceiver()
+        timeoutHandler.postDelayed(timeoutRunnable, durationMs)
     }
 
     private fun initCallStateReceiver() {
@@ -121,11 +197,15 @@ class IncomingCallActivity : Activity() {
                     return
                 }
                 when (action) {
-                    ACTION_CALL_NOTIFICATION_CANCELED, ACTION_CALL_REJECT, ACTION_CALL_ENDED -> {
+                    ACTION_CALL_NOTIFICATION_CANCELED, ACTION_CALL_REJECT, ACTION_CALL_ENDED, ACTION_CALL_TIMEOUT -> {
+                        timeoutHandler.removeCallbacks(timeoutRunnable)
                         finishAndRemoveTask()
                     }
 
-                    ACTION_CALL_ACCEPT -> finishDelayed()
+                    ACTION_CALL_ACCEPT -> {
+                        timeoutHandler.removeCallbacks(timeoutRunnable)
+                        finishDelayed()
+                    }
                 }
             }
         }
@@ -143,6 +223,7 @@ class IncomingCallActivity : Activity() {
         intentFilter.addAction(ACTION_CALL_REJECT)
         intentFilter.addAction(ACTION_CALL_ACCEPT)
         intentFilter.addAction(ACTION_CALL_ENDED)
+        intentFilter.addAction(ACTION_CALL_TIMEOUT)
         localBroadcastManager.registerReceiver(callStateReceiver, intentFilter)
     }
 
@@ -151,6 +232,7 @@ class IncomingCallActivity : Activity() {
     }
 
     override fun onDestroy() {
+        timeoutHandler.removeCallbacks(timeoutRunnable)
         super.onDestroy()
         unRegisterCallStateReceiver()
     }
@@ -165,6 +247,12 @@ class IncomingCallActivity : Activity() {
         callUserInfo = intent.getStringExtra(EXTRA_CALL_USER_INFO)
         acceptButtonLabel = intent.getStringExtra(EXTRA_ACCEPT_BUTTON_LABEL)
         rejectButtonLabel = intent.getStringExtra(EXTRA_REJECT_BUTTON_LABEL)
+        durationMs = intent.getLongExtra(EXTRA_CALL_DURATION, DEFAULT_CALL_DURATION_MS)
+        backgroundColor = intent.getStringExtra(EXTRA_BACKGROUND_COLOR)
+        backgroundUrl = intent.getStringExtra(EXTRA_BACKGROUND_URL)
+        logoUrl = intent.getStringExtra(EXTRA_LOGO_URL)
+        isShowLogo = intent.getBooleanExtra(EXTRA_IS_SHOW_LOGO, false)
+        textColor = intent.getStringExtra(EXTRA_TEXT_COLOR)
     }
 
     private fun applyButtonLabel(textViewId: String, label: String?) {
@@ -176,26 +264,88 @@ class IncomingCallActivity : Activity() {
         }
         labelView.text = label
         labelView.visibility = View.VISIBLE
+        applyTextColor(labelView)
+    }
+
+    private fun applyTextColor(textView: TextView) {
+        if (!TextUtils.isEmpty(textColor)) {
+            try {
+                textView.setTextColor(Color.parseColor(textColor))
+            } catch (_: Exception) {
+            }
+        }
     }
 
     private fun initUi() {
+        val root = findViewById<View>(android.R.id.content)
+        if (!TextUtils.isEmpty(backgroundColor)) {
+            try {
+                root.setBackgroundColor(Color.parseColor(backgroundColor))
+            } catch (_: Exception) {
+            }
+        }
+
         val backgroundImg: ImageView =
             findViewById(resources.getIdentifier("call_background_img", "id", packageName))
-        val backgroundResId = getCallBackgroundResId(applicationContext)
-        if (backgroundResId != 0) {
-            backgroundImg.setImageResource(backgroundResId)
-            backgroundImg.visibility = View.VISIBLE
+        val bgDrawableName = if (!TextUtils.isEmpty(backgroundUrl) &&
+            !backgroundUrl!!.startsWith("http", true) &&
+            !backgroundUrl!!.contains("/")
+        ) {
+            backgroundUrl
         } else {
-            backgroundImg.visibility = View.GONE
+            null
+        }
+        val backgroundResId = getCallBackgroundResId(applicationContext, bgDrawableName)
+        val remoteBg = resolveDrawableOrAssetUrl(applicationContext, backgroundUrl)
+        when {
+            remoteBg != null || (backgroundUrl != null && backgroundUrl!!.startsWith("http", true)) -> {
+                backgroundImg.visibility = View.VISIBLE
+                Glide.with(applicationContext)
+                    .load(remoteBg ?: backgroundUrl)
+                    .into(backgroundImg)
+            }
+            backgroundResId != 0 -> {
+                backgroundImg.setImageResource(backgroundResId)
+                backgroundImg.visibility = View.VISIBLE
+            }
+            else -> backgroundImg.visibility = View.GONE
+        }
+
+        val logoImg: ImageView =
+            findViewById(resources.getIdentifier("call_logo_img", "id", packageName))
+        if (isShowLogo) {
+            val logoDrawableName = if (!TextUtils.isEmpty(logoUrl) &&
+                !logoUrl!!.startsWith("http", true) &&
+                !logoUrl!!.contains("/")
+            ) {
+                logoUrl
+            } else null
+            val logoResId = getLogoResId(applicationContext, logoDrawableName)
+            val remoteLogo = resolveDrawableOrAssetUrl(applicationContext, logoUrl)
+            when {
+                remoteLogo != null || (logoUrl != null && logoUrl!!.startsWith("http", true)) -> {
+                    logoImg.visibility = View.VISIBLE
+                    Glide.with(applicationContext).load(remoteLogo ?: logoUrl).into(logoImg)
+                }
+                logoResId != 0 -> {
+                    logoImg.setImageResource(logoResId)
+                    logoImg.visibility = View.VISIBLE
+                }
+                else -> logoImg.visibility = View.GONE
+            }
+        } else {
+            logoImg.visibility = View.GONE
         }
 
         val callTitleTxt: TextView =
             findViewById(resources.getIdentifier("user_name_txt", "id", packageName))
         callTitleTxt.text = callInitiatorName
+        applyTextColor(callTitleTxt)
         val callSubTitleTxt: TextView =
             findViewById(resources.getIdentifier("call_type_txt", "id", packageName))
         callSubTitleTxt.text =
             String.format(CALL_TYPE_PLACEHOLDER, if (callType == 1) "Video" else "Audio")
+        applyTextColor(callSubTitleTxt)
 
         val callAcceptButton: ImageView =
             findViewById(resources.getIdentifier("start_call_btn", "id", packageName))
@@ -215,7 +365,7 @@ class IncomingCallActivity : Activity() {
 
         if (!TextUtils.isEmpty(callPhoto)) {
             Glide.with(applicationContext)
-                .load(callPhoto)
+                .load(resolveDrawableOrAssetUrl(applicationContext, callPhoto) ?: callPhoto)
                 .error(defaultPhotoResId)
                 .placeholder(defaultPhotoResId)
                 .into(avatarImg)
@@ -237,6 +387,7 @@ class IncomingCallActivity : Activity() {
 
     // calls from layout file
     fun onEndCall(view: View?) {
+        timeoutHandler.removeCallbacks(timeoutRunnable)
         val bundle = Bundle()
         bundle.putString(EXTRA_CALL_ID, callId)
         bundle.putInt(EXTRA_CALL_TYPE, callType)
@@ -254,6 +405,7 @@ class IncomingCallActivity : Activity() {
 
     // calls from layout file
     fun onStartCall(view: View?) {
+        timeoutHandler.removeCallbacks(timeoutRunnable)
         val bundle = Bundle()
         bundle.putString(EXTRA_CALL_ID, callId)
         bundle.putInt(EXTRA_CALL_TYPE, callType)

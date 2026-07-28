@@ -2,6 +2,9 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 
+import 'android_call_kit_params.dart';
+import 'missed_call_notification_params.dart';
+
 /// {@template call_event}
 /// Information about the call events (e.g. CallAccepted / CallRejected)
 /// {@endtemplate}
@@ -18,6 +21,9 @@ class CallEvent {
     this.userInfo,
     this.acceptButtonLabel,
     this.rejectButtonLabel,
+    this.duration,
+    this.missedCallNotification,
+    this.android,
   });
 
   final String sessionId;
@@ -30,6 +36,18 @@ class CallEvent {
   /// Android full-screen incoming UI only. Ignored on iOS CallKit.
   final String? acceptButtonLabel;
   final String? rejectButtonLabel;
+
+  /// Ring timeout in milliseconds. When elapsed without accept/reject,
+  /// the incoming UI is dismissed and a missed-call notification may be shown.
+  /// Defaults to 60000 on the native side when unset.
+  final int? duration;
+
+  /// Missed-call notification options (shown after timeout or via
+  /// [ConnectycubeFlutterCallKit.showMissCallNotification]).
+  final MissedCallNotificationParams? missedCallNotification;
+
+  /// Per-call Android customization (logo, background, ringtone, colors…).
+  final AndroidCallKitParams? android;
 
   /// Used for exchanging additional data between the Call notification and your app,
   /// you will get this data in event callbacks (e.g. onCallAcceptedWhenTerminated,
@@ -47,6 +65,9 @@ class CallEvent {
     Map<String, String>? userInfo,
     String? acceptButtonLabel,
     String? rejectButtonLabel,
+    int? duration,
+    MissedCallNotificationParams? missedCallNotification,
+    AndroidCallKitParams? android,
   }) {
     return CallEvent(
       sessionId: sessionId ?? this.sessionId,
@@ -58,10 +79,18 @@ class CallEvent {
       userInfo: userInfo ?? this.userInfo,
       acceptButtonLabel: acceptButtonLabel ?? this.acceptButtonLabel,
       rejectButtonLabel: rejectButtonLabel ?? this.rejectButtonLabel,
+      duration: duration ?? this.duration,
+      missedCallNotification:
+          missedCallNotification ?? this.missedCallNotification,
+      android: android ?? this.android,
     );
   }
 
   Map<String, Object?> toMap() {
+    final acceptLabel =
+        acceptButtonLabel ?? android?.textAccept;
+    final rejectLabel =
+        rejectButtonLabel ?? android?.textDecline;
     return {
       'session_id': sessionId,
       'call_type': callType,
@@ -70,16 +99,26 @@ class CallEvent {
       'call_opponents': opponentsIds.join(','),
       'photo_url': callPhoto,
       'user_info': jsonEncode(userInfo ?? <String, String>{}),
-      if (acceptButtonLabel != null && acceptButtonLabel!.isNotEmpty)
-        'accept_button_label': acceptButtonLabel,
-      if (rejectButtonLabel != null && rejectButtonLabel!.isNotEmpty)
-        'reject_button_label': rejectButtonLabel,
+      if (acceptLabel != null && acceptLabel.isNotEmpty)
+        'accept_button_label': acceptLabel,
+      if (rejectLabel != null && rejectLabel.isNotEmpty)
+        'reject_button_label': rejectLabel,
+      if (duration != null) 'duration': duration,
+      if (missedCallNotification != null)
+        'missed_call_notification': missedCallNotification!.toMap(),
+      if (android != null) 'android': android!.toMap(),
     };
   }
 
   static int readInt(dynamic value, {int fallback = 0}) {
     if (value is int) return value;
     return int.tryParse(value?.toString() ?? '') ?? fallback;
+  }
+
+  static int? readNullableInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    return int.tryParse(value.toString());
   }
 
   static Set<int> readOpponents(dynamic value) {
@@ -109,6 +148,22 @@ class CallEvent {
     return null;
   }
 
+  static Map<String, dynamic>? _asStringKeyedMap(dynamic value) {
+    if (value == null) return null;
+    if (value is Map) {
+      return value.map((key, item) => MapEntry(key.toString(), item));
+    }
+    if (value is String && value.trim().isNotEmpty) {
+      try {
+        final decoded = jsonDecode(value);
+        if (decoded is Map) {
+          return decoded.map((key, item) => MapEntry(key.toString(), item));
+        }
+      } catch (_) {}
+    }
+    return null;
+  }
+
   factory CallEvent.fromMap(Map<String, dynamic> map) {
     print('[CallEvent.fromMap] map: $map');
     return CallEvent(
@@ -121,6 +176,15 @@ class CallEvent {
       acceptButtonLabel: map['accept_button_label']?.toString(),
       rejectButtonLabel: map['reject_button_label']?.toString(),
       userInfo: readUserInfo(map['user_info']),
+      duration: readNullableInt(map['duration']),
+      missedCallNotification: MissedCallNotificationParams.tryFromMap(
+        _asStringKeyedMap(
+          map['missed_call_notification'] ?? map['missedCallNotification'],
+        ),
+      ),
+      android: _asStringKeyedMap(map['android']) == null
+          ? null
+          : AndroidCallKitParams.fromMap(_asStringKeyedMap(map['android'])),
     );
   }
 
@@ -140,6 +204,9 @@ class CallEvent {
         'callPhoto: $callPhoto, '
         'acceptButtonLabel: $acceptButtonLabel, '
         'rejectButtonLabel: $rejectButtonLabel, '
+        'duration: $duration, '
+        'missedCallNotification: $missedCallNotification, '
+        'android: $android, '
         'userInfo: $userInfo)';
   }
 
@@ -156,6 +223,9 @@ class CallEvent {
         other.callPhoto == callPhoto &&
         other.acceptButtonLabel == acceptButtonLabel &&
         other.rejectButtonLabel == rejectButtonLabel &&
+        other.duration == duration &&
+        other.missedCallNotification == missedCallNotification &&
+        other.android == android &&
         mapEquals(other.userInfo, userInfo);
   }
 
@@ -168,6 +238,9 @@ class CallEvent {
         opponentsIds.hashCode ^
         (acceptButtonLabel?.hashCode ?? 0) ^
         (rejectButtonLabel?.hashCode ?? 0) ^
+        (duration?.hashCode ?? 0) ^
+        (missedCallNotification?.hashCode ?? 0) ^
+        (android?.hashCode ?? 0) ^
         userInfo.hashCode;
   }
 }

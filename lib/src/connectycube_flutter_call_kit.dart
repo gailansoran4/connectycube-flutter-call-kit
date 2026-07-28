@@ -45,39 +45,72 @@ class ConnectycubeFlutterCallKit {
 
   /// end iOS only callbacks
 
+  // Stored so PluginUtilities can resolve the tear-off; invoked from native isolate.
+  // ignore: unused_field
   static CallEventHandler? _onCallRejectedWhenTerminated;
+  // ignore: unused_field
   static CallEventHandler? _onCallAcceptedWhenTerminated;
+  // ignore: unused_field
   static CallEventHandler? _onCallIncomingWhenTerminated;
+  // ignore: unused_field
+  static CallEventHandler? _onMissedCallCallbackWhenTerminated;
 
   static CallEventHandler? _onCallAccepted;
   static CallEventHandler? _onCallRejected;
-
   static CallEventHandler? _onCallIncoming;
+  static CallEventHandler? _onCallTimeout;
+  static CallEventHandler? _onMissedCallCallback;
 
   /// Initialize the plugin and provided user callbacks.
   ///
   /// - This function should only be called once at the beginning of
   /// your application.
-  void init(
-      {CallEventHandler? onCallAccepted,
-      CallEventHandler? onCallRejected,
-      CallEventHandler? onCallIncoming,
-      String? ringtone,
-      String? icon,
-      String? background,
-      @Deprecated('Use `AndroidManifest.xml` meta-data instead')
-      String? notificationIcon,
-      String? color}) {
+  void init({
+    CallEventHandler? onCallAccepted,
+    CallEventHandler? onCallRejected,
+    CallEventHandler? onCallIncoming,
+    CallEventHandler? onCallTimeout,
+    CallEventHandler? onMissedCallCallback,
+    String? ringtone,
+    String? icon,
+    String? background,
+    @Deprecated('Use `AndroidManifest.xml` meta-data instead')
+    String? notificationIcon,
+    String? color,
+    String? logo,
+    String? backgroundColor,
+    String? actionColor,
+    String? textColor,
+    String? missedCallSubtitle,
+    String? missedCallCallbackText,
+    bool? showMissedCallNotification,
+    bool? showMissedCallCallback,
+    String? missedCallNotificationChannelName,
+    int? defaultDurationMs,
+  }) {
     _onCallAccepted = onCallAccepted;
     _onCallRejected = onCallRejected;
     _onCallIncoming = onCallIncoming;
+    _onCallTimeout = onCallTimeout;
+    _onMissedCallCallback = onMissedCallCallback;
 
     updateConfig(
-        ringtone: ringtone,
-        icon: icon,
-        background: background,
-        notificationIcon: notificationIcon,
-        color: color);
+      ringtone: ringtone,
+      icon: icon,
+      background: background,
+      notificationIcon: notificationIcon,
+      color: color,
+      logo: logo,
+      backgroundColor: backgroundColor,
+      actionColor: actionColor,
+      textColor: textColor,
+      missedCallSubtitle: missedCallSubtitle,
+      missedCallCallbackText: missedCallCallbackText,
+      showMissedCallNotification: showMissedCallNotification,
+      showMissedCallCallback: showMissedCallCallback,
+      missedCallNotificationChannelName: missedCallNotificationChannelName,
+      defaultDurationMs: defaultDurationMs,
+    );
 
     initEventsHandler();
   }
@@ -124,6 +157,19 @@ class ConnectycubeFlutterCallKit {
     }
   }
 
+  /// Set a missed-call "Call back" handler for background / terminated.
+  ///
+  /// This provided handler must be a top-level function and cannot be
+  /// anonymous otherwise an [ArgumentError] will be thrown.
+  static set onMissedCallCallbackWhenTerminated(CallEventHandler? handler) {
+    _onMissedCallCallbackWhenTerminated = handler;
+
+    if (handler != null) {
+      instance._registerBackgroundCallEventHandler(
+          handler, BackgroundCallbackName.MISSED_CALLBACK_IN_BACKGROUND);
+    }
+  }
+
   Future<void> _registerBackgroundCallEventHandler(
       CallEventHandler handler, String callbackName) async {
     if (!Platform.isAndroid) {
@@ -157,18 +203,29 @@ class ConnectycubeFlutterCallKit {
   }
 
   /// Sets the additional configs for the Call notification
-  /// [ringtone] - the name of the ringtone source (for Anfroid it should be placed by path 'res/raw', for iOS it is a name of ringtone)
-  /// [icon] - the name of image in the `drawable` folder for Android and the name of Assests set for iOS
+  /// [ringtone] - the name of the ringtone source (for Android it should be placed by path 'res/raw', for iOS it is a name of ringtone)
+  /// [icon] - the name of image in the `drawable` folder for Android and the name of Assets set for iOS
   /// [background] - the name of image in the `drawable` folder used as full-screen incoming call background on Android, ignored for iOS
   /// [notificationIcon] - the name of the image in the `drawable` folder, uses as Notification Small Icon for Android, ignored for iOS
   /// [color] - the color in the format '#RRGGBB', uses as an Android Notification accent color, ignored for iOS
-  Future<void> updateConfig(
-      {String? ringtone,
-      String? icon,
-      String? background,
-      @Deprecated('Use `AndroidManifest.xml` meta-data instead')
-      String? notificationIcon,
-      String? color}) {
+  Future<void> updateConfig({
+    String? ringtone,
+    String? icon,
+    String? background,
+    @Deprecated('Use `AndroidManifest.xml` meta-data instead')
+    String? notificationIcon,
+    String? color,
+    String? logo,
+    String? backgroundColor,
+    String? actionColor,
+    String? textColor,
+    String? missedCallSubtitle,
+    String? missedCallCallbackText,
+    bool? showMissedCallNotification,
+    bool? showMissedCallCallback,
+    String? missedCallNotificationChannelName,
+    int? defaultDurationMs,
+  }) {
     if (!Platform.isAndroid && !Platform.isIOS) return Future.value();
 
     return _methodChannel.invokeMethod('updateConfig', {
@@ -177,6 +234,16 @@ class ConnectycubeFlutterCallKit {
       'background': background,
       'notification_icon': notificationIcon,
       'color': color,
+      'logo': logo,
+      'background_color': backgroundColor,
+      'action_color': actionColor,
+      'text_color': textColor,
+      'missed_call_subtitle': missedCallSubtitle,
+      'missed_call_callback_text': missedCallCallbackText,
+      'show_missed_call_notification': showMissedCallNotification,
+      'show_missed_call_callback': showMissedCallCallback,
+      'missed_call_notification_channel_name': missedCallNotificationChannelName,
+      'default_duration_ms': defaultDurationMs,
     });
   }
 
@@ -196,6 +263,17 @@ class ConnectycubeFlutterCallKit {
 
     return _methodChannel.invokeMethod(
         "showCallNotification", callEvent.toMap());
+  }
+
+  /// Show a missed-call notification (Android + iOS local notification).
+  ///
+  /// Body tap opens the host app with call extras. Optional "Call back"
+  /// action opens the app and fires [onMissedCallCallback].
+  static Future<void> showMissCallNotification(CallEvent callEvent) async {
+    if (!Platform.isAndroid && !Platform.isIOS) return Future.value();
+
+    return _methodChannel.invokeMethod(
+        "showMissCallNotification", callEvent.toMap());
   }
 
   /// Report that the current active call has been accepted by your application
@@ -364,6 +442,16 @@ class ConnectycubeFlutterCallKit {
         _onCallIncoming?.call(callEvent);
         break;
 
+      case 'timeoutCall':
+        var callEvent = CallEvent.fromMap(arguments);
+        _onCallTimeout?.call(callEvent);
+        break;
+
+      case 'missedCallCallback':
+        var callEvent = CallEvent.fromMap(arguments);
+        _onMissedCallCallback?.call(callEvent);
+        break;
+
       case '':
         break;
 
@@ -429,4 +517,6 @@ class BackgroundCallbackName {
   static const String REJECTED_IN_BACKGROUND = "rejected_in_background";
   static const String ACCEPTED_IN_BACKGROUND = "accepted_in_background";
   static const String INCOMING_IN_BACKGROUND = "incoming_in_background";
+  static const String MISSED_CALLBACK_IN_BACKGROUND =
+      "missed_callback_in_background";
 }

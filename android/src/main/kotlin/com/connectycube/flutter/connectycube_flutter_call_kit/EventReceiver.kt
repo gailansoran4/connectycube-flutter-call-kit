@@ -105,22 +105,62 @@ class EventReceiver : BroadcastReceiver() {
             ACTION_CALL_NOTIFICATION_CANCELED -> {
                 val extras = intent.extras
                 val callId = extras?.getString(EXTRA_CALL_ID)
-                val callType = extras?.getInt(EXTRA_CALL_TYPE)
-                val callInitiatorId = extras?.getInt(EXTRA_CALL_INITIATOR_ID)
-                val callInitiatorName = extras?.getString(EXTRA_CALL_INITIATOR_NAME)
-                val callPhoto = extras?.getString(EXTRA_CALL_PHOTO)
-                val userInfo = extras?.getString(EXTRA_CALL_USER_INFO)
                 Log.i(
                     TAG,
                     "NotificationReceiver onReceive Delete Call Notification, callId: $callId"
                 )
-                LocalBroadcastManager.getInstance(context.applicationContext)
-                    .sendBroadcast(
-                        Intent(ACTION_CALL_NOTIFICATION_CANCELED).putExtra(
-                            EXTRA_CALL_ID,
-                            callId
+                // Notification timeout (setTimeoutAfter) delivers deleteIntent —
+                // treat pending calls as missed/timeout.
+                if (callId != null && getCallState(context, callId) == CALL_STATE_PENDING) {
+                    processCallTimeout(context, extras)
+                } else {
+                    LocalBroadcastManager.getInstance(context.applicationContext)
+                        .sendBroadcast(
+                            Intent(ACTION_CALL_NOTIFICATION_CANCELED).putExtra(
+                                EXTRA_CALL_ID,
+                                callId
+                            )
                         )
+                }
+            }
+
+            ACTION_CALL_TIMEOUT -> {
+                processCallTimeout(context, intent.extras)
+            }
+
+            ACTION_CALL_CALLBACK -> {
+                val extras = intent.extras
+                val callId = extras?.getString(EXTRA_CALL_ID)
+                Log.i(TAG, "Missed call CALLBACK, callId: $callId")
+
+                cancelMissedCallNotification(context, extras?.getString(EXTRA_MISSED_ID) ?: callId ?: "")
+
+                val broadcastIntent = Intent(ACTION_CALL_CALLBACK)
+                if (extras != null) {
+                    broadcastIntent.putExtras(extras)
+                }
+
+                if (isApplicationForeground(context)) {
+                    LocalBroadcastManager.getInstance(context.applicationContext)
+                        .sendBroadcast(broadcastIntent)
+                } else {
+                    broadcastIntent.putExtra("userCallbackHandleName", MISSED_CALLBACK_IN_BACKGROUND)
+                    ConnectycubeFlutterBgPerformingService.enqueueMessageProcessing(
+                        context,
+                        broadcastIntent
                     )
+                }
+
+                val launchIntent = getLaunchIntent(context)
+                if (extras != null) {
+                    launchIntent?.putExtras(extras)
+                }
+                launchIntent?.addFlags(
+                    Intent.FLAG_ACTIVITY_NEW_TASK or
+                        Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                        Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
+                )
+                context.startActivity(launchIntent)
             }
         }
     }
