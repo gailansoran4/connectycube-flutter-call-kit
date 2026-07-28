@@ -141,6 +141,14 @@ class _CallKitExampleAppState extends State<CallKitExampleApp> {
       duration: durationMs,
       acceptButtonLabel: 'Accept',
       rejectButtonLabel: 'Decline',
+      // Android only: background tints the full-screen round buttons and the
+      // heads-up notification buttons; text color is applied to the button
+      // labels in both states. iOS CallKit does not allow custom button
+      // names/colors (system limitation).
+      acceptButtonBackgroundColor: '#00C853',
+      acceptButtonTextColor: '#FFFFFF',
+      rejectButtonBackgroundColor: '#D50000',
+      rejectButtonTextColor: '#FFFFFF',
       missedCallNotification: const MissedCallNotificationParams(
         showNotification: true,
         subtitle: 'Missed call',
@@ -157,6 +165,10 @@ class _CallKitExampleAppState extends State<CallKitExampleApp> {
         textColor: '#FFFFFF',
         textAccept: 'Accept',
         textDecline: 'Decline',
+        acceptButtonBackgroundColor: '#00C853',
+        acceptButtonTextColor: '#FFFFFF',
+        declineButtonBackgroundColor: '#D50000',
+        declineButtonTextColor: '#FFFFFF',
         durationMs: durationMs,
         missedCallNotificationChannelName: 'Missed Call',
         isShowFullLockedScreen: true,

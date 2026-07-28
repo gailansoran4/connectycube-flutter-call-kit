@@ -126,6 +126,34 @@ object CallParamsHelper {
         return androidMap?.get("text_decline")?.toString()
     }
 
+    fun acceptBackgroundColor(arguments: Map<String, Any?>): String? {
+        val direct = arguments["accept_button_background_color"]?.toString()
+        if (!TextUtils.isEmpty(direct)) return direct
+        val androidMap = asStringKeyedMap(arguments["android"])
+        return androidMap?.get("accept_button_background_color")?.toString()
+    }
+
+    fun acceptTextColor(arguments: Map<String, Any?>): String? {
+        val direct = arguments["accept_button_text_color"]?.toString()
+        if (!TextUtils.isEmpty(direct)) return direct
+        val androidMap = asStringKeyedMap(arguments["android"])
+        return androidMap?.get("accept_button_text_color")?.toString()
+    }
+
+    fun rejectBackgroundColor(arguments: Map<String, Any?>): String? {
+        val direct = arguments["reject_button_background_color"]?.toString()
+        if (!TextUtils.isEmpty(direct)) return direct
+        val androidMap = asStringKeyedMap(arguments["android"])
+        return androidMap?.get("decline_button_background_color")?.toString()
+    }
+
+    fun rejectTextColor(arguments: Map<String, Any?>): String? {
+        val direct = arguments["reject_button_text_color"]?.toString()
+        if (!TextUtils.isEmpty(direct)) return direct
+        val androidMap = asStringKeyedMap(arguments["android"])
+        return androidMap?.get("decline_button_text_color")?.toString()
+    }
+
     fun missedShow(arguments: Map<String, Any?>, context: android.content.Context): Boolean {
         val missed = asStringKeyedMap(arguments["missed_call_notification"])
         if (missed?.containsKey("show_notification") == true) {

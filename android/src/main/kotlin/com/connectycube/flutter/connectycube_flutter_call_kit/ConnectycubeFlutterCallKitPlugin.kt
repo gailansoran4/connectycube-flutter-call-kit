@@ -159,6 +159,10 @@ class ConnectycubeFlutterCallKitPlugin : FlutterPlugin, MethodCallHandler,
                     val userInfo = arguments["user_info"] as String
                     val acceptButtonLabel = CallParamsHelper.acceptLabel(arguments)
                     val rejectButtonLabel = CallParamsHelper.rejectLabel(arguments)
+                    val acceptButtonBgColor = CallParamsHelper.acceptBackgroundColor(arguments)
+                    val acceptButtonTextColor = CallParamsHelper.acceptTextColor(arguments)
+                    val rejectButtonBgColor = CallParamsHelper.rejectBackgroundColor(arguments)
+                    val rejectButtonTextColor = CallParamsHelper.rejectTextColor(arguments)
                     val durationMs = CallParamsHelper.durationMs(arguments, applicationContext!!)
                     val ringtonePath = CallParamsHelper.ringtonePath(arguments, applicationContext!!)
                     val backgroundColor = CallParamsHelper.backgroundColor(arguments, applicationContext!!)
@@ -190,6 +194,10 @@ class ConnectycubeFlutterCallKitPlugin : FlutterPlugin, MethodCallHandler,
                         userInfo,
                         acceptButtonLabel,
                         rejectButtonLabel,
+                        acceptButtonBgColor,
+                        acceptButtonTextColor,
+                        rejectButtonBgColor,
+                        rejectButtonTextColor,
                         durationMs,
                         ringtonePath,
                         backgroundColor,

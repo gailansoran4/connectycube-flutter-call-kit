@@ -22,6 +22,10 @@ class CallEvent {
     this.userInfo,
     this.acceptButtonLabel,
     this.rejectButtonLabel,
+    this.acceptButtonBackgroundColor,
+    this.acceptButtonTextColor,
+    this.rejectButtonBackgroundColor,
+    this.rejectButtonTextColor,
     this.duration,
     this.missedCallNotification,
     this.android,
@@ -35,9 +39,30 @@ class CallEvent {
   final Set<int> opponentsIds;
   final String? callPhoto;
 
-  /// Android full-screen incoming UI only. Ignored on iOS CallKit.
+  /// Custom label for the Accept/Reject buttons.
+  ///
+  /// Android: applied to the full-screen incoming UI and to the heads-up
+  /// notification actions.
+  /// iOS: ignored — the CallKit system UI does not allow custom button text.
   final String? acceptButtonLabel;
   final String? rejectButtonLabel;
+
+  /// Background color (`#RRGGBB` or `#AARRGGBB`) of the Accept/Reject buttons.
+  ///
+  /// Android: tints the round Accept/Reject buttons on the full-screen
+  /// incoming UI and the button backgrounds on the heads-up notification.
+  /// iOS: ignored — the CallKit system UI does not allow custom button colors.
+  final String? acceptButtonBackgroundColor;
+  final String? rejectButtonBackgroundColor;
+
+  /// Foreground/text color (`#RRGGBB` or `#AARRGGBB`) of the Accept/Reject
+  /// buttons.
+  ///
+  /// Android: applied to the button labels on the full-screen incoming UI and
+  /// to the button text on the heads-up notification.
+  /// iOS: ignored — the CallKit system UI does not allow custom button colors.
+  final String? acceptButtonTextColor;
+  final String? rejectButtonTextColor;
 
   /// Ring timeout in milliseconds. When elapsed without accept/reject,
   /// the incoming UI is dismissed and a missed-call notification may be shown.
@@ -71,6 +96,10 @@ class CallEvent {
     Map<String, String>? userInfo,
     String? acceptButtonLabel,
     String? rejectButtonLabel,
+    String? acceptButtonBackgroundColor,
+    String? acceptButtonTextColor,
+    String? rejectButtonBackgroundColor,
+    String? rejectButtonTextColor,
     int? duration,
     MissedCallNotificationParams? missedCallNotification,
     AndroidCallKitParams? android,
@@ -86,6 +115,14 @@ class CallEvent {
       userInfo: userInfo ?? this.userInfo,
       acceptButtonLabel: acceptButtonLabel ?? this.acceptButtonLabel,
       rejectButtonLabel: rejectButtonLabel ?? this.rejectButtonLabel,
+      acceptButtonBackgroundColor:
+          acceptButtonBackgroundColor ?? this.acceptButtonBackgroundColor,
+      acceptButtonTextColor:
+          acceptButtonTextColor ?? this.acceptButtonTextColor,
+      rejectButtonBackgroundColor:
+          rejectButtonBackgroundColor ?? this.rejectButtonBackgroundColor,
+      rejectButtonTextColor:
+          rejectButtonTextColor ?? this.rejectButtonTextColor,
       duration: duration ?? this.duration,
       missedCallNotification:
           missedCallNotification ?? this.missedCallNotification,
@@ -99,6 +136,14 @@ class CallEvent {
         acceptButtonLabel ?? android?.textAccept;
     final rejectLabel =
         rejectButtonLabel ?? android?.textDecline;
+    final acceptBgColor =
+        acceptButtonBackgroundColor ?? android?.acceptButtonBackgroundColor;
+    final acceptTxtColor =
+        acceptButtonTextColor ?? android?.acceptButtonTextColor;
+    final rejectBgColor =
+        rejectButtonBackgroundColor ?? android?.declineButtonBackgroundColor;
+    final rejectTxtColor =
+        rejectButtonTextColor ?? android?.declineButtonTextColor;
     return {
       'session_id': sessionId,
       'call_type': callType,
@@ -111,6 +156,14 @@ class CallEvent {
         'accept_button_label': acceptLabel,
       if (rejectLabel != null && rejectLabel.isNotEmpty)
         'reject_button_label': rejectLabel,
+      if (acceptBgColor != null && acceptBgColor.isNotEmpty)
+        'accept_button_background_color': acceptBgColor,
+      if (acceptTxtColor != null && acceptTxtColor.isNotEmpty)
+        'accept_button_text_color': acceptTxtColor,
+      if (rejectBgColor != null && rejectBgColor.isNotEmpty)
+        'reject_button_background_color': rejectBgColor,
+      if (rejectTxtColor != null && rejectTxtColor.isNotEmpty)
+        'reject_button_text_color': rejectTxtColor,
       if (duration != null) 'duration': duration,
       if (missedCallNotification != null)
         'missed_call_notification': missedCallNotification!.toMap(),
@@ -184,6 +237,12 @@ class CallEvent {
       callPhoto: map['photo_url']?.toString(),
       acceptButtonLabel: map['accept_button_label']?.toString(),
       rejectButtonLabel: map['reject_button_label']?.toString(),
+      acceptButtonBackgroundColor:
+          map['accept_button_background_color']?.toString(),
+      acceptButtonTextColor: map['accept_button_text_color']?.toString(),
+      rejectButtonBackgroundColor:
+          map['reject_button_background_color']?.toString(),
+      rejectButtonTextColor: map['reject_button_text_color']?.toString(),
       userInfo: readUserInfo(map['user_info']),
       duration: readNullableInt(map['duration']),
       missedCallNotification: MissedCallNotificationParams.tryFromMap(
@@ -216,6 +275,10 @@ class CallEvent {
         'callPhoto: $callPhoto, '
         'acceptButtonLabel: $acceptButtonLabel, '
         'rejectButtonLabel: $rejectButtonLabel, '
+        'acceptButtonBackgroundColor: $acceptButtonBackgroundColor, '
+        'acceptButtonTextColor: $acceptButtonTextColor, '
+        'rejectButtonBackgroundColor: $rejectButtonBackgroundColor, '
+        'rejectButtonTextColor: $rejectButtonTextColor, '
         'duration: $duration, '
         'missedCallNotification: $missedCallNotification, '
         'android: $android, '
@@ -236,6 +299,10 @@ class CallEvent {
         other.callPhoto == callPhoto &&
         other.acceptButtonLabel == acceptButtonLabel &&
         other.rejectButtonLabel == rejectButtonLabel &&
+        other.acceptButtonBackgroundColor == acceptButtonBackgroundColor &&
+        other.acceptButtonTextColor == acceptButtonTextColor &&
+        other.rejectButtonBackgroundColor == rejectButtonBackgroundColor &&
+        other.rejectButtonTextColor == rejectButtonTextColor &&
         other.duration == duration &&
         other.missedCallNotification == missedCallNotification &&
         other.android == android &&
@@ -252,6 +319,10 @@ class CallEvent {
         opponentsIds.hashCode ^
         (acceptButtonLabel?.hashCode ?? 0) ^
         (rejectButtonLabel?.hashCode ?? 0) ^
+        (acceptButtonBackgroundColor?.hashCode ?? 0) ^
+        (acceptButtonTextColor?.hashCode ?? 0) ^
+        (rejectButtonBackgroundColor?.hashCode ?? 0) ^
+        (rejectButtonTextColor?.hashCode ?? 0) ^
         (duration?.hashCode ?? 0) ^
         (missedCallNotification?.hashCode ?? 0) ^
         (android?.hashCode ?? 0) ^

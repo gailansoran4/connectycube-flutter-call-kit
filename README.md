@@ -27,6 +27,7 @@ getting token and displaying the Incoming call screen.
 - checking and changing the access to the `Manifest.permission.USE_FULL_SCREEN_INTENT` permission (for Android 14 and above)
 - missed-call notifications with optional **Call back** action (Android + iOS)
 - Android full-screen customization: logo, background color/image, button labels, ring duration
+- Android Accept/Decline button customization (label + background/text colors) on both the heads-up notification and the full-screen incoming UI
 - timeout → missed-call flow and `onMissedCallCallback` / `onCallTimeout` events
 
 
@@ -148,6 +149,7 @@ ConnectycubeFlutterCallKit.showCallNotification(CallEvent(
 | Feature | Android `AndroidCallKitParams` | iOS `IOSCallKitParams` |
 |---------|--------------------------------|-------------------------|
 | Full-screen logo / background / colors / labels | Yes | No (system CallKit UI) |
+| Accept/Decline button label + background/text colors | Yes (heads-up + full-screen) | No (system CallKit UI) |
 | Ringtone from Flutter assets | Yes | Yes (asset path or bundled name; missed-call sound needs caf/wav/aiff) |
 | Icon | drawable / asset / URL | Assets.xcassets **or** Flutter asset |
 | Handle type / video / DTMF / hold flags | — | Yes |
@@ -179,6 +181,46 @@ ConnectycubeFlutterCallKit.showCallNotification(CallEvent(
   ),
 ));
 ```
+
+#### Customize the Accept/Decline buttons (label + colors)
+
+The button label, background color, and foreground/text color can be customized
+per call. On Android they are applied to **both** presentation states:
+
+- **heads-up notification** — the plugin renders a custom notification layout
+  with two pill buttons (label, background color, text color);
+- **full-screen incoming UI** — the background color tints the round
+  Accept/Decline buttons and the text color is applied to the labels under them.
+
+Set the fields on `CallEvent` directly (they win) or via `AndroidCallKitParams`:
+
+```dart
+ConnectycubeFlutterCallKit.showCallNotification(CallEvent(
+  // ...
+  acceptButtonLabel: 'Accept',
+  rejectButtonLabel: 'Decline',
+  acceptButtonBackgroundColor: '#00C853',
+  acceptButtonTextColor: '#FFFFFF',
+  rejectButtonBackgroundColor: '#D50000',
+  rejectButtonTextColor: '#FFFFFF',
+  // or the equivalent AndroidCallKitParams fields:
+  // textAccept / textDecline,
+  // acceptButtonBackgroundColor / acceptButtonTextColor,
+  // declineButtonBackgroundColor / declineButtonTextColor
+));
+```
+
+Notes:
+
+- When any button label/color is set, the Android heads-up notification switches
+  from the system `CallStyle` to a custom layout (required, because `CallStyle`
+  does not allow custom button text or colors). Without these fields the
+  system-styled notification is kept.
+- On Android 12+ the heads-up buttons keep rounded corners; on older versions
+  the background is applied as a flat color.
+- **iOS: not supported.** Both the full-screen incoming call UI and the banner
+  are the system CallKit screen — Apple does not allow changing its button
+  names or colors, so these fields are ignored on iOS.
 
 Show a missed-call notification manually (body tap opens the app; **Call back** fires `onMissedCallCallback`):
 

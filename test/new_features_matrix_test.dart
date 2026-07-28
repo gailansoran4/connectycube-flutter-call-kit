@@ -38,6 +38,106 @@ void main() {
       expect(android['text_accept'], 'Accept');
       expect(android['text_decline'], 'Decline');
     });
+
+    test('top-level button labels and colors are encoded for native side', () {
+      const event = CallEvent(
+        sessionId: 'ui-2',
+        callType: 1,
+        callerId: 1,
+        callerName: 'Caller',
+        opponentsIds: {2},
+        acceptButtonLabel: 'Answer',
+        rejectButtonLabel: 'Hang up',
+        acceptButtonBackgroundColor: '#00C853',
+        acceptButtonTextColor: '#FFFFFF',
+        rejectButtonBackgroundColor: '#D50000',
+        rejectButtonTextColor: '#FFFDE7',
+      );
+
+      final map = event.toMap();
+      expect(map['accept_button_label'], 'Answer');
+      expect(map['reject_button_label'], 'Hang up');
+      expect(map['accept_button_background_color'], '#00C853');
+      expect(map['accept_button_text_color'], '#FFFFFF');
+      expect(map['reject_button_background_color'], '#D50000');
+      expect(map['reject_button_text_color'], '#FFFDE7');
+    });
+
+    test('button colors fall back to AndroidCallKitParams values', () {
+      const event = CallEvent(
+        sessionId: 'ui-3',
+        callType: 0,
+        callerId: 1,
+        callerName: 'Caller',
+        opponentsIds: {2},
+        android: AndroidCallKitParams(
+          textAccept: 'Pick up',
+          textDecline: 'Dismiss',
+          acceptButtonBackgroundColor: '#123456',
+          acceptButtonTextColor: '#ABCDEF',
+          declineButtonBackgroundColor: '#654321',
+          declineButtonTextColor: '#FEDCBA',
+        ),
+      );
+
+      final map = event.toMap();
+      // Top-level keys are filled from android params when unset.
+      expect(map['accept_button_label'], 'Pick up');
+      expect(map['reject_button_label'], 'Dismiss');
+      expect(map['accept_button_background_color'], '#123456');
+      expect(map['accept_button_text_color'], '#ABCDEF');
+      expect(map['reject_button_background_color'], '#654321');
+      expect(map['reject_button_text_color'], '#FEDCBA');
+
+      final android = map['android'] as Map;
+      expect(android['accept_button_background_color'], '#123456');
+      expect(android['accept_button_text_color'], '#ABCDEF');
+      expect(android['decline_button_background_color'], '#654321');
+      expect(android['decline_button_text_color'], '#FEDCBA');
+    });
+
+    test('button labels and colors survive CallEvent map round-trip', () {
+      const original = CallEvent(
+        sessionId: 'ui-4',
+        callType: 1,
+        callerId: 7,
+        callerName: 'Round Trip',
+        opponentsIds: {8},
+        acceptButtonLabel: 'Join',
+        rejectButtonLabel: 'Ignore',
+        acceptButtonBackgroundColor: '#4CB050',
+        acceptButtonTextColor: '#FFFFFF',
+        rejectButtonBackgroundColor: '#E02B00',
+        rejectButtonTextColor: '#000000',
+      );
+
+      final restored = CallEvent.fromMap(
+        original.toMap().map((key, value) => MapEntry(key, value)),
+      );
+      expect(restored.acceptButtonLabel, 'Join');
+      expect(restored.rejectButtonLabel, 'Ignore');
+      expect(restored.acceptButtonBackgroundColor, '#4CB050');
+      expect(restored.acceptButtonTextColor, '#FFFFFF');
+      expect(restored.rejectButtonBackgroundColor, '#E02B00');
+      expect(restored.rejectButtonTextColor, '#000000');
+    });
+
+    test('AndroidCallKitParams button colors survive map round-trip', () {
+      const params = AndroidCallKitParams(
+        acceptButtonBackgroundColor: '#00FF00',
+        acceptButtonTextColor: '#111111',
+        declineButtonBackgroundColor: '#FF0000',
+        declineButtonTextColor: '#222222',
+      );
+      final restored = AndroidCallKitParams.fromMap(
+        params.toMap().cast<String, dynamic>(),
+      );
+      expect(restored.acceptButtonBackgroundColor, '#00FF00');
+      expect(restored.acceptButtonTextColor, '#111111');
+      expect(restored.declineButtonBackgroundColor, '#FF0000');
+      expect(restored.declineButtonTextColor, '#222222');
+      expect(restored, params);
+    });
   });
 
   group('Feature matrix: timeout → missed', () {

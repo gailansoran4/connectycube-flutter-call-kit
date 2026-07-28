@@ -14,6 +14,10 @@ class AndroidCallKitParams {
     this.textColor,
     this.textAccept,
     this.textDecline,
+    this.acceptButtonBackgroundColor,
+    this.acceptButtonTextColor,
+    this.declineButtonBackgroundColor,
+    this.declineButtonTextColor,
     this.incomingCallNotificationChannelName,
     this.missedCallNotificationChannelName,
     this.isShowFullLockedScreen,
@@ -50,6 +54,26 @@ class AndroidCallKitParams {
   /// Decline button label on full-screen UI.
   final String? textDecline;
 
+  /// Accept button background color (`#RRGGBB` or `#AARRGGBB`).
+  /// Tints the round Accept button on the full-screen incoming UI and the
+  /// Accept button background on the heads-up notification.
+  final String? acceptButtonBackgroundColor;
+
+  /// Accept button foreground/text color (`#RRGGBB` or `#AARRGGBB`).
+  /// Applied to the Accept label on the full-screen incoming UI and the
+  /// Accept button text on the heads-up notification.
+  final String? acceptButtonTextColor;
+
+  /// Decline/Reject button background color (`#RRGGBB` or `#AARRGGBB`).
+  /// Tints the round Decline button on the full-screen incoming UI and the
+  /// Decline button background on the heads-up notification.
+  final String? declineButtonBackgroundColor;
+
+  /// Decline/Reject button foreground/text color (`#RRGGBB` or `#AARRGGBB`).
+  /// Applied to the Decline label on the full-screen incoming UI and the
+  /// Decline button text on the heads-up notification.
+  final String? declineButtonTextColor;
+
   final String? incomingCallNotificationChannelName;
   final String? missedCallNotificationChannelName;
 
@@ -73,6 +97,14 @@ class AndroidCallKitParams {
       if (textColor != null) 'text_color': textColor,
       if (textAccept != null) 'text_accept': textAccept,
       if (textDecline != null) 'text_decline': textDecline,
+      if (acceptButtonBackgroundColor != null)
+        'accept_button_background_color': acceptButtonBackgroundColor,
+      if (acceptButtonTextColor != null)
+        'accept_button_text_color': acceptButtonTextColor,
+      if (declineButtonBackgroundColor != null)
+        'decline_button_background_color': declineButtonBackgroundColor,
+      if (declineButtonTextColor != null)
+        'decline_button_text_color': declineButtonTextColor,
       if (incomingCallNotificationChannelName != null)
         'incoming_call_notification_channel_name':
             incomingCallNotificationChannelName,
@@ -105,6 +137,16 @@ class AndroidCallKitParams {
           map['text_accept']?.toString() ?? map['textAccept']?.toString(),
       textDecline:
           map['text_decline']?.toString() ?? map['textDecline']?.toString(),
+      acceptButtonBackgroundColor:
+          map['accept_button_background_color']?.toString() ??
+              map['acceptButtonBackgroundColor']?.toString(),
+      acceptButtonTextColor: map['accept_button_text_color']?.toString() ??
+          map['acceptButtonTextColor']?.toString(),
+      declineButtonBackgroundColor:
+          map['decline_button_background_color']?.toString() ??
+              map['declineButtonBackgroundColor']?.toString(),
+      declineButtonTextColor: map['decline_button_text_color']?.toString() ??
+          map['declineButtonTextColor']?.toString(),
       incomingCallNotificationChannelName:
           map['incoming_call_notification_channel_name']?.toString() ??
               map['incomingCallNotificationChannelName']?.toString(),
@@ -137,6 +179,10 @@ class AndroidCallKitParams {
         'textColor: $textColor, '
         'textAccept: $textAccept, '
         'textDecline: $textDecline, '
+        'acceptButtonBackgroundColor: $acceptButtonBackgroundColor, '
+        'acceptButtonTextColor: $acceptButtonTextColor, '
+        'declineButtonBackgroundColor: $declineButtonBackgroundColor, '
+        'declineButtonTextColor: $declineButtonTextColor, '
         'durationMs: $durationMs)';
   }
 
@@ -153,6 +199,10 @@ class AndroidCallKitParams {
         other.textColor == textColor &&
         other.textAccept == textAccept &&
         other.textDecline == textDecline &&
+        other.acceptButtonBackgroundColor == acceptButtonBackgroundColor &&
+        other.acceptButtonTextColor == acceptButtonTextColor &&
+        other.declineButtonBackgroundColor == declineButtonBackgroundColor &&
+        other.declineButtonTextColor == declineButtonTextColor &&
         other.incomingCallNotificationChannelName ==
             incomingCallNotificationChannelName &&
         other.missedCallNotificationChannelName ==
@@ -173,6 +223,10 @@ class AndroidCallKitParams {
       (textColor?.hashCode ?? 0) ^
       (textAccept?.hashCode ?? 0) ^
       (textDecline?.hashCode ?? 0) ^
+      (acceptButtonBackgroundColor?.hashCode ?? 0) ^
+      (acceptButtonTextColor?.hashCode ?? 0) ^
+      (declineButtonBackgroundColor?.hashCode ?? 0) ^
+      (declineButtonTextColor?.hashCode ?? 0) ^
       (incomingCallNotificationChannelName?.hashCode ?? 0) ^
       (missedCallNotificationChannelName?.hashCode ?? 0) ^
       (isShowFullLockedScreen?.hashCode ?? 0) ^

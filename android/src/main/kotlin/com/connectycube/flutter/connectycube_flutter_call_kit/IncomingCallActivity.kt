@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.graphics.Color
+import android.graphics.PorterDuff
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -34,6 +35,8 @@ fun createStartIncomingScreenIntent(
     context: Context, callId: String, callType: Int, callInitiatorId: Int,
     callInitiatorName: String, opponents: ArrayList<Int>, callPhoto: String?, userInfo: String,
     acceptButtonLabel: String? = null, rejectButtonLabel: String? = null,
+    acceptButtonBgColor: String? = null, acceptButtonTextColor: String? = null,
+    rejectButtonBgColor: String? = null, rejectButtonTextColor: String? = null,
     durationMs: Long = DEFAULT_CALL_DURATION_MS,
     backgroundColor: String? = null,
     backgroundUrl: String? = null,
@@ -52,6 +55,10 @@ fun createStartIncomingScreenIntent(
     intent.putExtra(EXTRA_CALL_USER_INFO, userInfo)
     intent.putExtra(EXTRA_ACCEPT_BUTTON_LABEL, acceptButtonLabel)
     intent.putExtra(EXTRA_REJECT_BUTTON_LABEL, rejectButtonLabel)
+    intent.putExtra(EXTRA_ACCEPT_BUTTON_BG_COLOR, acceptButtonBgColor)
+    intent.putExtra(EXTRA_ACCEPT_BUTTON_TEXT_COLOR, acceptButtonTextColor)
+    intent.putExtra(EXTRA_REJECT_BUTTON_BG_COLOR, rejectButtonBgColor)
+    intent.putExtra(EXTRA_REJECT_BUTTON_TEXT_COLOR, rejectButtonTextColor)
     intent.putExtra(EXTRA_CALL_DURATION, durationMs)
     intent.putExtra(EXTRA_BACKGROUND_COLOR, backgroundColor)
     intent.putExtra(EXTRA_BACKGROUND_URL, backgroundUrl)
@@ -74,6 +81,10 @@ class IncomingCallActivity : Activity() {
     private var callUserInfo: String? = null
     private var acceptButtonLabel: String? = null
     private var rejectButtonLabel: String? = null
+    private var acceptButtonBgColor: String? = null
+    private var acceptButtonTextColor: String? = null
+    private var rejectButtonBgColor: String? = null
+    private var rejectButtonTextColor: String? = null
     private var durationMs: Long = DEFAULT_CALL_DURATION_MS
     private var backgroundColor: String? = null
     private var backgroundUrl: String? = null
@@ -249,6 +260,10 @@ class IncomingCallActivity : Activity() {
         callUserInfo = intent.getStringExtra(EXTRA_CALL_USER_INFO)
         acceptButtonLabel = intent.getStringExtra(EXTRA_ACCEPT_BUTTON_LABEL)
         rejectButtonLabel = intent.getStringExtra(EXTRA_REJECT_BUTTON_LABEL)
+        acceptButtonBgColor = intent.getStringExtra(EXTRA_ACCEPT_BUTTON_BG_COLOR)
+        acceptButtonTextColor = intent.getStringExtra(EXTRA_ACCEPT_BUTTON_TEXT_COLOR)
+        rejectButtonBgColor = intent.getStringExtra(EXTRA_REJECT_BUTTON_BG_COLOR)
+        rejectButtonTextColor = intent.getStringExtra(EXTRA_REJECT_BUTTON_TEXT_COLOR)
         durationMs = intent.getLongExtra(EXTRA_CALL_DURATION, DEFAULT_CALL_DURATION_MS)
         backgroundColor = intent.getStringExtra(EXTRA_BACKGROUND_COLOR)
         backgroundUrl = intent.getStringExtra(EXTRA_BACKGROUND_URL)
@@ -257,7 +272,7 @@ class IncomingCallActivity : Activity() {
         textColor = intent.getStringExtra(EXTRA_TEXT_COLOR)
     }
 
-    private fun applyButtonLabel(textViewId: String, label: String?) {
+    private fun applyButtonLabel(textViewId: String, label: String?, labelColor: String?) {
         val labelView: TextView =
             findViewById(resources.getIdentifier(textViewId, "id", packageName))
         if (TextUtils.isEmpty(label)) {
@@ -267,6 +282,13 @@ class IncomingCallActivity : Activity() {
         labelView.text = label
         labelView.visibility = View.VISIBLE
         applyTextColor(labelView)
+        // Per-button text color wins over the generic textColor.
+        if (!TextUtils.isEmpty(labelColor)) {
+            try {
+                labelView.setTextColor(Color.parseColor(labelColor))
+            } catch (_: Exception) {
+            }
+        }
     }
 
     private fun applyTextColor(textView: TextView) {
@@ -275,6 +297,15 @@ class IncomingCallActivity : Activity() {
                 textView.setTextColor(Color.parseColor(textColor))
             } catch (_: Exception) {
             }
+        }
+    }
+
+    private fun applyButtonColor(button: ImageView, colorString: String?) {
+        if (TextUtils.isEmpty(colorString)) return
+        try {
+            val color = Color.parseColor(colorString)
+            button.background?.mutate()?.setColorFilter(color, PorterDuff.Mode.SRC_IN)
+        } catch (_: Exception) {
         }
     }
 
@@ -377,6 +408,11 @@ class IncomingCallActivity : Activity() {
                 packageName
             )
         )
+        applyButtonColor(callAcceptButton, acceptButtonBgColor)
+
+        val callRejectButton: ImageView =
+            findViewById(resources.getIdentifier("end_call_btn", "id", packageName))
+        applyButtonColor(callRejectButton, rejectButtonBgColor)
 
         val avatarImg: ShapeableImageView =
             findViewById(resources.getIdentifier("avatar_img", "id", packageName))
@@ -410,8 +446,8 @@ class IncomingCallActivity : Activity() {
             findViewById(resources.getIdentifier("reject_button_animation", "id", packageName))
         rejectButtonAnimation.startRippleAnimation()
 
-        applyButtonLabel("accept_button_label_txt", acceptButtonLabel)
-        applyButtonLabel("reject_button_label_txt", rejectButtonLabel)
+        applyButtonLabel("accept_button_label_txt", acceptButtonLabel, acceptButtonTextColor)
+        applyButtonLabel("reject_button_label_txt", rejectButtonLabel, rejectButtonTextColor)
     }
 
     // calls from layout file

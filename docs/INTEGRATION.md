@@ -59,6 +59,7 @@ Asset support per platform:
 | Logo | Flutter asset / drawable / URL | Not possible (system CallKit UI) |
 | Background image/color | Flutter asset / drawable / URL / `#RRGGBB` | Not possible (system CallKit UI) |
 | Button labels / text colors | Yes | Not possible (system CallKit UI) |
+| Accept/Decline button background + text colors (heads-up notification and full-screen UI) | Yes | Not possible (system CallKit UI) |
 
 iOS notes:
 - iOS always shows the **system CallKit screen**. No app can change its
@@ -174,6 +175,11 @@ await ConnectycubeFlutterCallKit.showCallNotification(CallEvent(
   duration: 30000,                // ring time in ms before timeout -> missed
   acceptButtonLabel: 'Accept',
   rejectButtonLabel: 'Decline',
+  // Android only (heads-up notification + full-screen UI); ignored on iOS.
+  acceptButtonBackgroundColor: '#00C853',
+  acceptButtonTextColor: '#FFFFFF',
+  rejectButtonBackgroundColor: '#D50000',
+  rejectButtonTextColor: '#FFFFFF',
 
   missedCallNotification: const MissedCallNotificationParams(
     showNotification: true,
@@ -192,6 +198,11 @@ await ConnectycubeFlutterCallKit.showCallNotification(CallEvent(
     textColor: '#FFFFFF',
     textAccept: 'Accept',
     textDecline: 'Decline',
+    // Same as the CallEvent-level fields (CallEvent values win when both set):
+    acceptButtonBackgroundColor: '#00C853',
+    acceptButtonTextColor: '#FFFFFF',
+    declineButtonBackgroundColor: '#D50000',
+    declineButtonTextColor: '#FFFFFF',
     missedCallNotificationChannelName: 'Missed Call',
     isShowFullLockedScreen: true,
     durationMs: 30000,
@@ -262,6 +273,10 @@ if (!canFullScreen) {
   background on Android, and for ringtone / CallKit icon on iOS.
 - Android full-screen incoming UI: logo, background image/color, text and
   action colors, custom button labels.
+- Android Accept/Decline button customization: label, background color, and
+  foreground/text color, applied to both the heads-up notification (custom
+  layout replaces the system `CallStyle` when set) and the full-screen UI.
+  Not possible on iOS (system CallKit UI).
 - iOS: live `CXProvider` configuration refresh (config changes after init now
   take effect), CallKit icon from Flutter assets, asset ringtone resolution.
 

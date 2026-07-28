@@ -3,8 +3,12 @@ import 'package:flutter/foundation.dart';
 /// iOS CallKit options (mirrors flutter_callkit_incoming IOSParams).
 ///
 /// Unlike [AndroidCallKitParams], there is **no custom full-screen UI** on iOS —
-/// the system CallKit screen is used. Logo/background/colors/button labels
-/// from Android do not apply here.
+/// the system CallKit screen is used (both the full-screen incoming call UI
+/// and the banner shown while the device is unlocked). Logo/background/colors
+/// from Android do not apply here, and Apple does not allow changing the
+/// Accept/Decline button names or colors of the CallKit UI
+/// ([CallEvent.acceptButtonLabel], [CallEvent.acceptButtonBackgroundColor],
+/// [CallEvent.acceptButtonTextColor], etc. are ignored on iOS).
 @immutable
 class IOSCallKitParams {
   const IOSCallKitParams({

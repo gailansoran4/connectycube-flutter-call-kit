@@ -12,8 +12,10 @@ import android.media.AudioAttributes
 import android.media.RingtoneManager
 import android.net.Uri
 import android.os.Build
+import android.content.res.ColorStateList
 import android.os.Bundle
 import android.text.TextUtils
+import android.widget.RemoteViews
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -54,6 +56,10 @@ fun showCallNotification(
     userInfo: String,
     acceptButtonLabel: String? = null,
     rejectButtonLabel: String? = null,
+    acceptButtonBgColor: String? = null,
+    acceptButtonTextColor: String? = null,
+    rejectButtonBgColor: String? = null,
+    rejectButtonTextColor: String? = null,
     durationMs: Long = DEFAULT_CALL_DURATION_MS,
     ringtonePath: String? = null,
     backgroundColor: String? = null,
@@ -83,7 +89,9 @@ fun showCallNotification(
 
     val callData = buildCallBundle(
         callId, callType, callInitiatorId, callInitiatorName, callOpponents,
-        callPhoto, userInfo, acceptButtonLabel, rejectButtonLabel, durationMs,
+        callPhoto, userInfo, acceptButtonLabel, rejectButtonLabel,
+        acceptButtonBgColor, acceptButtonTextColor,
+        rejectButtonBgColor, rejectButtonTextColor, durationMs,
         backgroundColor, backgroundUrl, logoUrl, isShowLogo, textColor, actionColor,
         ringtonePath, missedShow, missedSubtitle, missedCallbackText, missedShowCallback,
         missedCount, missedId, missedChannelName
@@ -99,7 +107,13 @@ fun showCallNotification(
             ringtone,
             isVideoCall,
             callData,
-            durationMs
+            durationMs,
+            acceptButtonLabel,
+            rejectButtonLabel,
+            acceptButtonBgColor,
+            acceptButtonTextColor,
+            rejectButtonBgColor,
+            rejectButtonTextColor
         )
 
     addCallFullScreenIntent(
@@ -114,6 +128,10 @@ fun showCallNotification(
         userInfo,
         acceptButtonLabel,
         rejectButtonLabel,
+        acceptButtonBgColor,
+        acceptButtonTextColor,
+        rejectButtonBgColor,
+        rejectButtonTextColor,
         durationMs,
         backgroundColor,
         backgroundUrl,
@@ -248,6 +266,10 @@ fun buildCallBundle(
     userInfo: String,
     acceptButtonLabel: String?,
     rejectButtonLabel: String?,
+    acceptButtonBgColor: String?,
+    acceptButtonTextColor: String?,
+    rejectButtonBgColor: String?,
+    rejectButtonTextColor: String?,
     durationMs: Long,
     backgroundColor: String?,
     backgroundUrl: String?,
@@ -274,6 +296,10 @@ fun buildCallBundle(
     callData.putString(EXTRA_CALL_USER_INFO, userInfo)
     callData.putString(EXTRA_ACCEPT_BUTTON_LABEL, acceptButtonLabel)
     callData.putString(EXTRA_REJECT_BUTTON_LABEL, rejectButtonLabel)
+    callData.putString(EXTRA_ACCEPT_BUTTON_BG_COLOR, acceptButtonBgColor)
+    callData.putString(EXTRA_ACCEPT_BUTTON_TEXT_COLOR, acceptButtonTextColor)
+    callData.putString(EXTRA_REJECT_BUTTON_BG_COLOR, rejectButtonBgColor)
+    callData.putString(EXTRA_REJECT_BUTTON_TEXT_COLOR, rejectButtonTextColor)
     callData.putLong(EXTRA_CALL_DURATION, durationMs)
     callData.putString(EXTRA_BACKGROUND_COLOR, backgroundColor)
     callData.putString(EXTRA_BACKGROUND_URL, backgroundUrl)
@@ -394,24 +420,32 @@ fun createCallNotification(
     ringtone: Uri,
     isVideoCall: Boolean,
     callData: Bundle,
-    durationMs: Long
+    durationMs: Long,
+    acceptButtonLabel: String? = null,
+    rejectButtonLabel: String? = null,
+    acceptButtonBgColor: String? = null,
+    acceptButtonTextColor: String? = null,
+    rejectButtonBgColor: String? = null,
+    rejectButtonTextColor: String? = null
 ): NotificationCompat.Builder {
     val person = Person.Builder()
         .setName(title)
         .setImportant(true)
         .build()
 
-    val style = NotificationCompat.CallStyle.forIncomingCall(
-        person,
-        getRejectCallIntent(context, callData, title.hashCode()),
-        getAcceptCallIntent(context, callData, title.hashCode())
-    )
-    style.setIsVideo(isVideoCall)
+    val rejectIntent = getRejectCallIntent(context, callData, title.hashCode())
+    val acceptIntent = getAcceptCallIntent(context, callData, title.hashCode())
+
+    val hasCustomButtons = !TextUtils.isEmpty(acceptButtonLabel) ||
+        !TextUtils.isEmpty(rejectButtonLabel) ||
+        !TextUtils.isEmpty(acceptButtonBgColor) ||
+        !TextUtils.isEmpty(acceptButtonTextColor) ||
+        !TextUtils.isEmpty(rejectButtonBgColor) ||
+        !TextUtils.isEmpty(rejectButtonTextColor)
 
     val notificationBuilder = NotificationCompat.Builder(context, CALL_CHANNEL_ID)
     notificationBuilder
         .setContentText(callName)
-        .setStyle(style)
         .addPerson(person)
         .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
         .setAutoCancel(false)
@@ -420,7 +454,110 @@ fun createCallNotification(
         .setSound(ringtone)
         .setPriority(NotificationCompat.PRIORITY_MAX)
         .setTimeoutAfter(durationMs)
+
+    if (hasCustomButtons) {
+        // CallStyle does not allow custom action labels/colors, so render the
+        // notification with a custom layout when button customization is requested.
+        val remoteViews = buildCallRemoteViews(
+            context,
+            title,
+            callName,
+            acceptButtonLabel,
+            rejectButtonLabel,
+            acceptButtonBgColor,
+            acceptButtonTextColor,
+            rejectButtonBgColor,
+            rejectButtonTextColor,
+            rejectIntent,
+            acceptIntent
+        )
+        notificationBuilder
+            .setContentTitle(title)
+            .setStyle(NotificationCompat.DecoratedCustomViewStyle())
+            .setCustomContentView(remoteViews)
+            .setCustomBigContentView(remoteViews)
+            .setCustomHeadsUpContentView(remoteViews)
+    } else {
+        val style = NotificationCompat.CallStyle.forIncomingCall(
+            person,
+            rejectIntent,
+            acceptIntent
+        )
+        style.setIsVideo(isVideoCall)
+        notificationBuilder.setStyle(style)
+    }
     return notificationBuilder
+}
+
+fun parseColorOr(color: String?, fallbackColor: String): Int {
+    return try {
+        Color.parseColor(if (TextUtils.isEmpty(color)) fallbackColor else color)
+    } catch (_: Exception) {
+        Color.parseColor(fallbackColor)
+    }
+}
+
+fun buildCallRemoteViews(
+    context: Context,
+    title: String,
+    callName: String?,
+    acceptButtonLabel: String?,
+    rejectButtonLabel: String?,
+    acceptButtonBgColor: String?,
+    acceptButtonTextColor: String?,
+    rejectButtonBgColor: String?,
+    rejectButtonTextColor: String?,
+    rejectIntent: PendingIntent,
+    acceptIntent: PendingIntent
+): RemoteViews {
+    val res = context.resources
+    val pkg = context.packageName
+    val remoteViews =
+        RemoteViews(pkg, res.getIdentifier("notification_incoming_call", "layout", pkg))
+    val callerNameTxtId = res.getIdentifier("notification_caller_name_txt", "id", pkg)
+    val callTypeTxtId = res.getIdentifier("notification_call_type_txt", "id", pkg)
+    val rejectBtnId = res.getIdentifier("notification_reject_btn", "id", pkg)
+    val acceptBtnId = res.getIdentifier("notification_accept_btn", "id", pkg)
+
+    remoteViews.setTextViewText(callerNameTxtId, title)
+    remoteViews.setTextViewText(callTypeTxtId, callName ?: "")
+    remoteViews.setTextViewText(rejectBtnId, rejectButtonLabel ?: "Decline")
+    remoteViews.setTextViewText(acceptBtnId, acceptButtonLabel ?: "Accept")
+    remoteViews.setOnClickPendingIntent(rejectBtnId, rejectIntent)
+    remoteViews.setOnClickPendingIntent(acceptBtnId, acceptIntent)
+
+    applyRemoteButtonColors(
+        remoteViews,
+        rejectBtnId,
+        parseColorOr(rejectButtonBgColor, "#E02B00"),
+        parseColorOr(rejectButtonTextColor, "#FFFFFF")
+    )
+    applyRemoteButtonColors(
+        remoteViews,
+        acceptBtnId,
+        parseColorOr(acceptButtonBgColor, "#4CB050"),
+        parseColorOr(acceptButtonTextColor, "#FFFFFF")
+    )
+    return remoteViews
+}
+
+fun applyRemoteButtonColors(
+    remoteViews: RemoteViews,
+    viewId: Int,
+    backgroundColor: Int,
+    textColor: Int
+) {
+    remoteViews.setTextColor(viewId, textColor)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        // Tints the rounded shape drawable, keeping the pill-button look.
+        remoteViews.setColorStateList(
+            viewId,
+            "setBackgroundTintList",
+            ColorStateList.valueOf(backgroundColor)
+        )
+    } else {
+        remoteViews.setInt(viewId, "setBackgroundColor", backgroundColor)
+    }
 }
 
 fun getAcceptCallIntent(
@@ -476,6 +613,10 @@ fun addCallFullScreenIntent(
     userInfo: String,
     acceptButtonLabel: String? = null,
     rejectButtonLabel: String? = null,
+    acceptButtonBgColor: String? = null,
+    acceptButtonTextColor: String? = null,
+    rejectButtonBgColor: String? = null,
+    rejectButtonTextColor: String? = null,
     durationMs: Long = DEFAULT_CALL_DURATION_MS,
     backgroundColor: String? = null,
     backgroundUrl: String? = null,
@@ -494,6 +635,10 @@ fun addCallFullScreenIntent(
         userInfo,
         acceptButtonLabel,
         rejectButtonLabel,
+        acceptButtonBgColor,
+        acceptButtonTextColor,
+        rejectButtonBgColor,
+        rejectButtonTextColor,
         durationMs,
         backgroundColor,
         backgroundUrl,
