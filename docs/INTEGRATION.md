@@ -271,8 +271,10 @@ if (!canFullScreen) {
   plus `showMissCallNotification` for manual display.
 - Flutter asset paths (`assets/...`) accepted for ringtone / icon / logo /
   background on Android, and for ringtone / CallKit icon on iOS.
-- Android full-screen incoming UI: logo, background image/color, text and
-  action colors, custom button labels.
+- Android full-screen incoming UI: background image/color + caller name
+  (+ accept/decline buttons). Avatar, call type, and logo are hidden.
+- Android heads-up notification left icon: logo only (never caller photo);
+  caller name is still shown as the title.
 - Android Accept/Decline button customization: label, background color, and
   foreground/text color, applied to both the heads-up notification (custom
   layout replaces the system `CallStyle` when set) and the full-screen UI.

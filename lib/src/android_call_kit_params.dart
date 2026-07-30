@@ -25,10 +25,12 @@ class AndroidCallKitParams {
     this.durationMs,
   });
 
-  /// Show app logo on the full-screen incoming UI.
+  /// Show app logo as the heads-up notification left icon (Android).
+  /// Full-screen incoming UI shows background image + caller name (+ accept/decline).
   final bool? isShowLogo;
 
-  /// Drawable name, Flutter asset path (`assets/image/logo.png`), or http(s) URL for the logo.
+  /// Drawable name, Flutter asset path (`assets/image/logo.png`), or http(s) URL for the logo
+  /// used on the heads-up notification left side.
   final String? logoUrl;
 
   /// Ringtone: Android `res/raw` name, **or** Flutter asset path

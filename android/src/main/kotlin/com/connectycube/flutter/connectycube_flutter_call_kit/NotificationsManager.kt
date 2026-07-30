@@ -22,6 +22,8 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.Person
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.resource.bitmap.CircleCrop
+import com.connectycube.flutter.connectycube_flutter_call_kit.utils.getConfiguredLogoLoadUrl
+import com.connectycube.flutter.connectycube_flutter_call_kit.utils.getDefaultLogo
 import com.connectycube.flutter.connectycube_flutter_call_kit.utils.getDefaultPhoto
 import com.connectycube.flutter.connectycube_flutter_call_kit.utils.getPhotoPlaceholderResId
 import com.connectycube.flutter.connectycube_flutter_call_kit.utils.getString
@@ -151,18 +153,28 @@ fun showCallNotification(
     setNotificationColor(context, builder, actionColor)
     createCallNotificationChannel(notificationManager, ringtone, channelName)
 
-    if (TextUtils.isEmpty(callPhoto)) {
-        setNotificationLargeIcon(builder, defaultPhoto)
-        postNotification(callId.hashCode(), notificationManager, builder)
-    } else {
-        loadPhotoAndPostNotification(
+    // Heads-up left icon: logo only (never caller photo / avatar).
+    val logoFallback = getDefaultLogo(context, logoUrl)
+    val configuredLogoUrl = getConfiguredLogoLoadUrl(context, logoUrl)
+    val remoteLogo = when {
+        !TextUtils.isEmpty(configuredLogoUrl) &&
+            configuredLogoUrl!!.startsWith("http", true) -> configuredLogoUrl
+        !TextUtils.isEmpty(logoUrl) && logoUrl!!.startsWith("http", true) -> logoUrl
+        else -> null
+    }
+
+    if (remoteLogo != null) {
+        loadLogoAndPostNotification(
             context,
             notificationManager,
             builder,
             callId.hashCode(),
-            callPhoto!!,
-            defaultPhoto
+            remoteLogo,
+            logoFallback
         )
+    } else {
+        setNotificationLargeIcon(builder, logoFallback)
+        postNotification(callId.hashCode(), notificationManager, builder)
     }
 }
 
@@ -402,6 +414,34 @@ fun loadPhotoAndPostNotification(
             }
         } else {
             builder.setLargeIcon(defaultPhoto)
+            postNotification(notificationId, notificationManager, builder)
+        }
+    }
+}
+
+fun loadLogoAndPostNotification(
+    context: Context,
+    notificationManager: NotificationManagerCompat,
+    builder: NotificationCompat.Builder,
+    notificationId: Int,
+    logoUrl: String,
+    defaultLogo: Bitmap
+) {
+    CoroutineScope(Dispatchers.IO).launch {
+        val loadUrl = resolveDrawableOrAssetUrl(context, logoUrl) ?: logoUrl
+        val futureTarget = Glide.with(context)
+            .asBitmap()
+            .load(loadUrl)
+            .transform(CircleCrop())
+            .submit()
+
+        try {
+            val bitmap = futureTarget.get()
+            builder.setLargeIcon(bitmap)
+            Glide.with(context).clear(futureTarget)
+            postNotification(notificationId, notificationManager, builder)
+        } catch (_: Exception) {
+            builder.setLargeIcon(defaultLogo)
             postNotification(notificationId, notificationManager, builder)
         }
     }

@@ -108,7 +108,7 @@ class _CallKitExampleAppState extends State<CallKitExampleApp> {
       defaultDurationMs: 30000,
     );
 
-    // Enable logo on full-screen UI via persisted config.
+    // Persist logo (heads-up left icon) + background (full-screen only).
     await ConnectycubeFlutterCallKit.instance.updateConfig(
       logo: (!kIsWeb && Platform.isAndroid) ? 'assets/image/call_icon.png' : null,
       background: (!kIsWeb && Platform.isAndroid)

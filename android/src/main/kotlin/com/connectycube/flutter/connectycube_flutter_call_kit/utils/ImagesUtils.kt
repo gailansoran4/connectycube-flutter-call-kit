@@ -77,6 +77,57 @@ fun getLogoResId(context: Context, overrideName: String? = null): Int {
     return resId
 }
 
+/** Load URL for configured logo (Flutter asset, http, or null for drawable). */
+fun getConfiguredLogoLoadUrl(context: Context, overrideUrl: String? = null): String? {
+    val logo = if (!TextUtils.isEmpty(overrideUrl)) {
+        overrideUrl
+    } else {
+        getString(context.applicationContext, "logo")
+    }
+    return resolveDrawableOrAssetUrl(context, logo)
+}
+
+/**
+ * Bitmap for the heads-up notification left icon — logo only (never caller photo).
+ * Falls back to app icon when no logo is configured.
+ */
+fun getDefaultLogo(context: Context, overrideUrl: String? = null): Bitmap {
+    val logoUrl = getConfiguredLogoLoadUrl(context, overrideUrl)
+    if (!TextUtils.isEmpty(logoUrl)) {
+        try {
+            val assetKey = logoUrl!!
+                .removePrefix("file:///android_asset/")
+            if (assetKey.startsWith("flutter_assets/")) {
+                context.assets.open(assetKey).use { stream ->
+                    val decoded = BitmapFactory.decodeStream(stream)
+                    if (decoded != null) return getCircleBitmap(decoded)
+                }
+            }
+        } catch (_: Exception) {
+            // fall through
+        }
+    }
+
+    val logoResId = getLogoResId(
+        context,
+        if (!TextUtils.isEmpty(overrideUrl) &&
+            !isFlutterAssetPath(overrideUrl) &&
+            !(overrideUrl!!.startsWith("http", true))
+        ) overrideUrl else null
+    )
+    if (logoResId != 0) {
+        val decoded = BitmapFactory.decodeResource(context.resources, logoResId)
+        if (decoded != null) return getCircleBitmap(decoded)
+    }
+
+    val appIcon = BitmapFactory.decodeResource(context.resources, context.applicationInfo.icon)
+    return if (appIcon != null) {
+        getCircleBitmap(appIcon)
+    } else {
+        getDefaultPhoto(context)
+    }
+}
+
 fun getCircleBitmap(bitmap: Bitmap): Bitmap {
     val output = Bitmap.createBitmap(bitmap.width, bitmap.height, Bitmap.Config.ARGB_8888)
     val canvas = Canvas(output)
