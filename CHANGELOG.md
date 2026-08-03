@@ -1,3 +1,8 @@
+## 3.0.0
+- (Android) Match incoming call banner/drawer notification UI to `flutter_callkit_incoming` style;
+- (Android) Add separate heads-up and expanded notification layouts with Accept/Decline actions;
+- (Android) Improve full-screen incoming call layout (app logo, padding, button spacing);
+
 ## 2.8.2
 - (Android) Fix notification handling in Android 12 and above;
 - (Android) Migrate to using the Kotlin extensions (KTX) APIs in the main modules;

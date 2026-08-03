@@ -6,7 +6,7 @@ of the upstream plugin (feature parity with `flutter_callkit_incoming`).
 
 - Fork repository: https://github.com/gailansoran4/connectycube-flutter-call-kit
 - Upstream: https://github.com/ConnectyCube/connectycube-flutter-call-kit
-- Package name: `connectycube_flutter_call_kit` (version 2.8.4)
+- Package name: `connectycube_flutter_call_kit` (version 3.0.0)
 - Requires: Dart `>=3.12.0`, Flutter `>=3.44.0`
 
 ---
