@@ -46,6 +46,7 @@ class _CallKitExampleAppState extends State<CallKitExampleApp> {
   void _log(String message) {
     final line = '${DateTime.now().toIso8601String().substring(11, 19)}  $message';
     print(line);
+    if (!mounted) return;
     setState(() {
       _logs.insert(0, line);
       if (_logs.length > 40) _logs.removeLast();
