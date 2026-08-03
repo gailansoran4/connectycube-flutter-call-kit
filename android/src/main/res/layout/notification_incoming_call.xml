@@ -1,35 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Custom call notification (drawer + heads-up banner).
-  No solid background — system notification theme (light/dark) paints the card.
-  Text colors use system attrs so they follow light/dark automatically.
+  Expanded / drawer notification — matches flutter_callkit_incoming
+  layout_custom_notification.xml
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="vertical"
-    android:paddingStart="12dp"
-    android:paddingTop="10dp"
-    android:paddingEnd="12dp"
-    android:paddingBottom="10dp">
+    android:orientation="vertical">
 
-    <!-- App icon + caller info -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:gravity="center_vertical"
         android:orientation="horizontal">
-
-        <ImageView
-            android:id="@+id/notification_app_icon_img"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:layout_marginEnd="12dp"
-            android:contentDescription="@null"
-            android:scaleType="centerCrop"
-            tools:ignore="ContentDescription"
-            tools:src="@android:drawable/sym_def_app_icon" />
 
         <LinearLayout
             android:layout_width="0dp"
@@ -39,69 +23,109 @@
 
             <TextView
                 android:id="@+id/notification_caller_name_txt"
-                android:layout_width="match_parent"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:ellipsize="end"
                 android:maxLines="1"
-                android:textColor="?android:attr/textColorPrimary"
+                android:textAppearance="@style/TextAppearance.Compat.Notification.Title"
                 android:textSize="14sp"
-                android:textStyle="bold"
                 tools:text="User Name" />
 
             <TextView
                 android:id="@+id/notification_call_type_txt"
-                android:layout_width="match_parent"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
                 android:ellipsize="end"
                 android:maxLines="1"
-                android:textColor="?android:attr/textColorSecondary"
-                android:textSize="12sp"
+                android:textAppearance="@style/TextAppearance.Compat.Notification.Line2"
+                android:textSize="14sp"
                 tools:text="Incoming Video call" />
         </LinearLayout>
+
+        <ImageView
+            android:id="@+id/notification_app_icon_img"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:contentDescription="@null"
+            android:scaleType="centerCrop"
+            android:visibility="invisible"
+            tools:ignore="ContentDescription"
+            tools:src="@android:drawable/sym_def_app_icon"
+            tools:visibility="visible" />
     </LinearLayout>
 
-    <!-- Decline / Accept -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
+        android:layout_marginTop="8dp"
         android:orientation="horizontal">
 
-        <TextView
-            android:id="@+id/notification_reject_btn"
+        <LinearLayout
+            android:id="@+id/notification_reject_action"
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginEnd="6dp"
+            android:layout_height="48dp"
             android:layout_weight="1"
-            android:background="@drawable/shape_notification_button"
-            android:ellipsize="end"
+            android:background="@drawable/rounded_button_decline"
+            android:clickable="true"
+            android:focusable="true"
             android:gravity="center"
-            android:maxLines="1"
-            android:paddingStart="12dp"
-            android:paddingTop="10dp"
-            android:paddingEnd="12dp"
-            android:paddingBottom="10dp"
-            android:textSize="14sp"
-            android:textStyle="bold"
-            tools:text="Decline" />
+            android:orientation="horizontal">
 
-        <TextView
-            android:id="@+id/notification_accept_btn"
+            <ImageView
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:layout_marginEnd="6dp"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_call_end"
+                tools:ignore="ContentDescription" />
+
+            <TextView
+                android:id="@+id/notification_reject_btn"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:gravity="center"
+                android:maxLines="1"
+                android:textAllCaps="false"
+                android:textColor="#FFFFFF"
+                android:textSize="14sp"
+                tools:text="Decline" />
+        </LinearLayout>
+
+        <View
+            android:layout_width="10dp"
+            android:layout_height="match_parent" />
+
+        <LinearLayout
+            android:id="@+id/notification_accept_action"
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="6dp"
+            android:layout_height="48dp"
             android:layout_weight="1"
-            android:background="@drawable/shape_notification_button"
-            android:ellipsize="end"
+            android:background="@drawable/rounded_button_accept"
+            android:clickable="true"
+            android:focusable="true"
             android:gravity="center"
-            android:maxLines="1"
-            android:paddingStart="12dp"
-            android:paddingTop="10dp"
-            android:paddingEnd="12dp"
-            android:paddingBottom="10dp"
-            android:textSize="14sp"
-            android:textStyle="bold"
-            tools:text="Accept" />
+            android:orientation="horizontal">
+
+            <ImageView
+                android:layout_width="18dp"
+                android:layout_height="18dp"
+                android:layout_marginEnd="6dp"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_call_start"
+                tools:ignore="ContentDescription" />
+
+            <TextView
+                android:id="@+id/notification_accept_btn"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:gravity="center"
+                android:maxLines="1"
+                android:textAllCaps="false"
+                android:textColor="#FFFFFF"
+                android:textSize="14sp"
+                tools:text="Accept" />
+        </LinearLayout>
     </LinearLayout>
 </LinearLayout>

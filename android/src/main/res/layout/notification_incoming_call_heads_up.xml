@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Heads-up / collapsed notification — matches flutter_callkit_incoming
+  layout_custom_small_ex_notification.xml (works better on Xiaomi/Poco/Samsung).
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingTop="2dp"
+    android:paddingBottom="2dp">
+
+    <ImageView
+        android:id="@+id/notification_app_icon_img"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:contentDescription="@null"
+        android:scaleType="centerCrop"
+        android:visibility="invisible"
+        tools:ignore="ContentDescription"
+        tools:src="@android:drawable/sym_def_app_icon"
+        tools:visibility="visible" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:layout_marginEnd="8dp"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/notification_caller_name_txt"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:singleLine="true"
+            android:textAppearance="@style/TextAppearance.Compat.Notification.Title"
+            android:textSize="14sp"
+            tools:text="User Name" />
+
+        <TextView
+            android:id="@+id/notification_call_type_txt"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:singleLine="true"
+            android:textAppearance="@style/TextAppearance.Compat.Notification.Line2"
+            android:textSize="14sp"
+            tools:text="Incoming Video call" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/notification_reject_action"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:background="@drawable/rounded_button_decline_circle"
+        android:clickable="true"
+        android:focusable="true"
+        android:gravity="center"
+        android:orientation="horizontal">
+
+        <ImageView
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:contentDescription="@null"
+            android:src="@drawable/ic_call_end"
+            tools:ignore="ContentDescription" />
+
+        <!-- Keep id for RemoteViews text updates; hidden in heads-up (icon-only). -->
+        <TextView
+            android:id="@+id/notification_reject_btn"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:visibility="gone"
+            tools:text="Decline" />
+    </LinearLayout>
+
+    <View
+        android:layout_width="16dp"
+        android:layout_height="match_parent" />
+
+    <LinearLayout
+        android:id="@+id/notification_accept_action"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:background="@drawable/rounded_button_accept_circle"
+        android:clickable="true"
+        android:focusable="true"
+        android:gravity="center"
+        android:orientation="horizontal">
+
+        <ImageView
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:contentDescription="@null"
+            android:src="@drawable/ic_call_start"
+            tools:ignore="ContentDescription" />
+
+        <TextView
+            android:id="@+id/notification_accept_btn"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:visibility="gone"
+            tools:text="Accept" />
+    </LinearLayout>
+</LinearLayout>

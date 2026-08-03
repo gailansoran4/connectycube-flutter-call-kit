@@ -6,6 +6,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.media.AudioAttributes
@@ -162,15 +163,7 @@ fun showCallNotification(
     setNotificationColor(context, builder, actionColor)
     createCallNotificationChannel(notificationManager, ringtone, channelName)
 
-    val usesCustomRemoteViews = hasCustomCallButtons(
-        acceptButtonLabel,
-        rejectButtonLabel,
-        acceptButtonBgColor,
-        acceptButtonTextColor,
-        rejectButtonBgColor,
-        rejectButtonTextColor
-    )
-
+    // Incoming calls always use notification_incoming_call.xml (banner + drawer).
     if (remoteLogo != null) {
         loadLogoAndPostNotification(
             context,
@@ -179,7 +172,7 @@ fun showCallNotification(
             callId.hashCode(),
             remoteLogo,
             logoFallback,
-            usesCustomRemoteViews,
+            usesCustomRemoteViews = true,
             callInitiatorName,
             callTypeTitle,
             acceptButtonLabel,
@@ -191,12 +184,8 @@ fun showCallNotification(
             callData
         )
     } else {
-        if (!usesCustomRemoteViews) {
-            // CallStyle path: system largeIcon on the right.
-            setNotificationLargeIcon(builder, logoFallback)
-        }
-        // Custom RemoteViews already embed the app icon — skip largeIcon
-        // so the system shade keeps a clean light/dark card.
+        // Icon is already inside the custom RemoteViews — do not set largeIcon
+        // (OEM skins would draw a second icon and break the layout).
         postNotification(callId.hashCode(), notificationManager, builder)
     }
 }
@@ -477,8 +466,9 @@ fun loadLogoAndPostNotification(
         if (usesCustomRemoteViews && callData != null) {
             val rejectIntent = getRejectCallIntent(context, callData, title.hashCode())
             val acceptIntent = getAcceptCallIntent(context, callData, title.hashCode())
-            val remoteViews = buildCallRemoteViews(
+            val headsUpViews = buildCallRemoteViews(
                 context,
+                "notification_incoming_call_heads_up",
                 title,
                 callName,
                 acceptButtonLabel,
@@ -491,10 +481,22 @@ fun loadLogoAndPostNotification(
                 acceptIntent,
                 bitmap
             )
-            builder
-                .setCustomContentView(remoteViews)
-                .setCustomBigContentView(remoteViews)
-                .setCustomHeadsUpContentView(remoteViews)
+            val bigViews = buildCallRemoteViews(
+                context,
+                "notification_incoming_call",
+                title,
+                callName,
+                acceptButtonLabel,
+                rejectButtonLabel,
+                acceptButtonBgColor,
+                acceptButtonTextColor,
+                rejectButtonBgColor,
+                rejectButtonTextColor,
+                rejectIntent,
+                acceptIntent,
+                bitmap
+            )
+            applyCustomCallRemoteViews(builder, headsUpViews, bigViews)
         } else {
             builder.setLargeIcon(bitmap)
         }
@@ -548,18 +550,8 @@ fun createCallNotification(
     val rejectIntent = getRejectCallIntent(context, callData, title.hashCode())
     val acceptIntent = getAcceptCallIntent(context, callData, title.hashCode())
 
-    val hasCustomButtons = hasCustomCallButtons(
-        acceptButtonLabel,
-        rejectButtonLabel,
-        acceptButtonBgColor,
-        acceptButtonTextColor,
-        rejectButtonBgColor,
-        rejectButtonTextColor
-    )
-
     val notificationBuilder = NotificationCompat.Builder(context, CALL_CHANNEL_ID)
     notificationBuilder
-        .setContentText(callName)
         .addPerson(person)
         .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
         .setAutoCancel(false)
@@ -568,42 +560,61 @@ fun createCallNotification(
         .setSound(ringtone)
         .setPriority(NotificationCompat.PRIORITY_MAX)
         .setTimeoutAfter(durationMs)
+        .setContentTitle(title)
+        .setContentText(callName)
 
-    if (hasCustomButtons) {
-        // CallStyle does not allow custom action labels/colors, so render the
-        // notification with a custom layout when button customization is requested.
-        // App icon is drawn inside the RemoteViews; no system largeIcon so the
-        // shade keeps native light/dark card chrome.
-        val remoteViews = buildCallRemoteViews(
-            context,
-            title,
-            callName,
-            acceptButtonLabel,
-            rejectButtonLabel,
-            acceptButtonBgColor,
-            acceptButtonTextColor,
-            rejectButtonBgColor,
-            rejectButtonTextColor,
-            rejectIntent,
-            acceptIntent,
-            appIcon
-        )
-        notificationBuilder
-            .setContentTitle(title)
-            .setStyle(NotificationCompat.DecoratedCustomViewStyle())
-            .setCustomContentView(remoteViews)
-            .setCustomBigContentView(remoteViews)
-            .setCustomHeadsUpContentView(remoteViews)
-    } else {
-        val style = NotificationCompat.CallStyle.forIncomingCall(
-            person,
-            rejectIntent,
-            acceptIntent
-        )
-        style.setIsVideo(isVideoCall)
-        notificationBuilder.setStyle(style)
-    }
+    // Same pattern as flutter_callkit_incoming:
+    //  - heads-up / collapsed → compact horizontal layout
+    //  - expanded drawer → full Decline/Accept pills with labels
+    //  - DecoratedCustomViewStyle for system light/dark card chrome
+    val headsUpViews = buildCallRemoteViews(
+        context,
+        "notification_incoming_call_heads_up",
+        title,
+        callName,
+        acceptButtonLabel,
+        rejectButtonLabel,
+        acceptButtonBgColor,
+        acceptButtonTextColor,
+        rejectButtonBgColor,
+        rejectButtonTextColor,
+        rejectIntent,
+        acceptIntent,
+        appIcon
+    )
+    val bigViews = buildCallRemoteViews(
+        context,
+        "notification_incoming_call",
+        title,
+        callName,
+        acceptButtonLabel,
+        rejectButtonLabel,
+        acceptButtonBgColor,
+        acceptButtonTextColor,
+        rejectButtonBgColor,
+        rejectButtonTextColor,
+        rejectIntent,
+        acceptIntent,
+        appIcon
+    )
+    applyCustomCallRemoteViews(notificationBuilder, headsUpViews, bigViews)
     return notificationBuilder
+}
+
+/**
+ * Applies custom layouts like flutter_callkit_incoming:
+ * content + heads-up = compact, big = expanded drawer.
+ */
+fun applyCustomCallRemoteViews(
+    notificationBuilder: NotificationCompat.Builder,
+    headsUpOrCollapsed: RemoteViews,
+    expanded: RemoteViews = headsUpOrCollapsed
+) {
+    notificationBuilder
+        .setStyle(NotificationCompat.DecoratedCustomViewStyle())
+        .setCustomContentView(RemoteViews(headsUpOrCollapsed))
+        .setCustomHeadsUpContentView(RemoteViews(headsUpOrCollapsed))
+        .setCustomBigContentView(RemoteViews(expanded))
 }
 
 fun parseColorOr(color: String?, fallbackColor: String): Int {
@@ -628,13 +639,47 @@ fun buildCallRemoteViews(
     acceptIntent: PendingIntent,
     appIcon: Bitmap? = null
 ): RemoteViews {
+    return buildCallRemoteViews(
+        context,
+        "notification_incoming_call",
+        title,
+        callName,
+        acceptButtonLabel,
+        rejectButtonLabel,
+        acceptButtonBgColor,
+        acceptButtonTextColor,
+        rejectButtonBgColor,
+        rejectButtonTextColor,
+        rejectIntent,
+        acceptIntent,
+        appIcon
+    )
+}
+
+fun buildCallRemoteViews(
+    context: Context,
+    layoutName: String,
+    title: String,
+    callName: String?,
+    acceptButtonLabel: String?,
+    rejectButtonLabel: String?,
+    acceptButtonBgColor: String?,
+    acceptButtonTextColor: String?,
+    rejectButtonBgColor: String?,
+    rejectButtonTextColor: String?,
+    rejectIntent: PendingIntent,
+    acceptIntent: PendingIntent,
+    appIcon: Bitmap? = null
+): RemoteViews {
     val res = context.resources
     val pkg = context.packageName
-    val remoteViews =
-        RemoteViews(pkg, res.getIdentifier("notification_incoming_call", "layout", pkg))
+    val layoutId = res.getIdentifier(layoutName, "layout", pkg)
+    val remoteViews = RemoteViews(pkg, layoutId)
     val appIconId = res.getIdentifier("notification_app_icon_img", "id", pkg)
     val callerNameTxtId = res.getIdentifier("notification_caller_name_txt", "id", pkg)
     val callTypeTxtId = res.getIdentifier("notification_call_type_txt", "id", pkg)
+    val rejectActionId = res.getIdentifier("notification_reject_action", "id", pkg)
+    val acceptActionId = res.getIdentifier("notification_accept_action", "id", pkg)
     val rejectBtnId = res.getIdentifier("notification_reject_btn", "id", pkg)
     val acceptBtnId = res.getIdentifier("notification_accept_btn", "id", pkg)
 
@@ -653,24 +698,66 @@ fun buildCallRemoteViews(
 
     remoteViews.setTextViewText(callerNameTxtId, title)
     remoteViews.setTextViewText(callTypeTxtId, callName ?: "")
-    remoteViews.setTextViewText(rejectBtnId, rejectButtonLabel ?: "Decline")
-    remoteViews.setTextViewText(acceptBtnId, acceptButtonLabel ?: "Accept")
-    remoteViews.setOnClickPendingIntent(rejectBtnId, rejectIntent)
-    remoteViews.setOnClickPendingIntent(acceptBtnId, acceptIntent)
+    if (rejectBtnId != 0) {
+        remoteViews.setTextViewText(rejectBtnId, rejectButtonLabel ?: "Decline")
+    }
+    if (acceptBtnId != 0) {
+        remoteViews.setTextViewText(acceptBtnId, acceptButtonLabel ?: "Accept")
+    }
 
-    applyRemoteButtonColors(
-        remoteViews,
-        rejectBtnId,
-        parseColorOr(rejectButtonBgColor, "#E02B00"),
-        parseColorOr(rejectButtonTextColor, "#FFFFFF")
-    )
-    applyRemoteButtonColors(
-        remoteViews,
-        acceptBtnId,
-        parseColorOr(acceptButtonBgColor, "#4CB050"),
-        parseColorOr(acceptButtonTextColor, "#FFFFFF")
-    )
+    // Clicks on the whole action container (like flutter_callkit_incoming llDecline/llAccept).
+    val rejectClickId = if (rejectActionId != 0) rejectActionId else rejectBtnId
+    val acceptClickId = if (acceptActionId != 0) acceptActionId else acceptBtnId
+    if (rejectClickId != 0) remoteViews.setOnClickPendingIntent(rejectClickId, rejectIntent)
+    if (acceptClickId != 0) remoteViews.setOnClickPendingIntent(acceptClickId, acceptIntent)
+
+    // Fallback explicit colors when Compat TextAppearance fails on some OEMs.
+    val (titleColor, subtitleColor) = notificationTextColors(context)
+    if (callerNameTxtId != 0) remoteViews.setTextColor(callerNameTxtId, titleColor)
+    if (callTypeTxtId != 0) remoteViews.setTextColor(callTypeTxtId, subtitleColor)
+
+    val declineColor = parseColorOr(rejectButtonBgColor, "#F44336")
+    val acceptColor = parseColorOr(acceptButtonBgColor, "#4CAF50")
+    val declineText = parseColorOr(rejectButtonTextColor, "#FFFFFF")
+    val acceptText = parseColorOr(acceptButtonTextColor, "#FFFFFF")
+
+    if (rejectActionId != 0) {
+        applyRemoteBackgroundTint(remoteViews, rejectActionId, declineColor)
+    }
+    if (acceptActionId != 0) {
+        applyRemoteBackgroundTint(remoteViews, acceptActionId, acceptColor)
+    }
+    if (rejectBtnId != 0) remoteViews.setTextColor(rejectBtnId, declineText)
+    if (acceptBtnId != 0) remoteViews.setTextColor(acceptBtnId, acceptText)
+
     return remoteViews
+}
+
+/** Light/dark text colors for custom call notification content. */
+fun notificationTextColors(context: Context): Pair<Int, Int> {
+    val night = (context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
+        Configuration.UI_MODE_NIGHT_YES
+    return if (night) {
+        Color.parseColor("#E8EAED") to Color.parseColor("#9AA0A6")
+    } else {
+        Color.parseColor("#1F1F1F") to Color.parseColor("#5F6368")
+    }
+}
+
+fun applyRemoteBackgroundTint(
+    remoteViews: RemoteViews,
+    viewId: Int,
+    backgroundColor: Int
+) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        remoteViews.setColorStateList(
+            viewId,
+            "setBackgroundTintList",
+            ColorStateList.valueOf(backgroundColor)
+        )
+    } else {
+        remoteViews.setInt(viewId, "setBackgroundColor", backgroundColor)
+    }
 }
 
 fun applyRemoteButtonColors(
@@ -680,16 +767,7 @@ fun applyRemoteButtonColors(
     textColor: Int
 ) {
     remoteViews.setTextColor(viewId, textColor)
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-        // Tints the rounded shape drawable, keeping the pill-button look.
-        remoteViews.setColorStateList(
-            viewId,
-            "setBackgroundTintList",
-            ColorStateList.valueOf(backgroundColor)
-        )
-    } else {
-        remoteViews.setInt(viewId, "setBackgroundColor", backgroundColor)
-    }
+    applyRemoteBackgroundTint(remoteViews, viewId, backgroundColor)
 }
 
 fun getAcceptCallIntent(
