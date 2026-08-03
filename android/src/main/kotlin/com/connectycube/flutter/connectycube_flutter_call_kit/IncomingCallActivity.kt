@@ -44,7 +44,9 @@ fun createStartIncomingScreenIntent(
     textColor: String? = null
 ): Intent {
     val intent = Intent(context, IncomingCallActivity::class.java)
-    intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+    intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+        Intent.FLAG_ACTIVITY_SINGLE_TOP or
+        Intent.FLAG_ACTIVITY_CLEAR_TOP
     intent.putExtra(EXTRA_CALL_ID, callId)
     intent.putExtra(EXTRA_CALL_TYPE, callType)
     intent.putExtra(EXTRA_CALL_INITIATOR_ID, callInitiatorId)
@@ -194,6 +196,20 @@ class IncomingCallActivity : Activity() {
         initUi()
         initCallStateReceiver()
         registerCallStateReceiver()
+        scheduleTimeout()
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        timeoutHandler.removeCallbacks(timeoutRunnable)
+        processIncomingData(intent)
+        initUi()
+        scheduleTimeout()
+    }
+
+    private fun scheduleTimeout() {
+        timeoutHandler.removeCallbacks(timeoutRunnable)
         timeoutHandler.postDelayed(timeoutRunnable, durationMs)
     }
 
@@ -395,7 +411,7 @@ class IncomingCallActivity : Activity() {
             else -> backgroundImg.visibility = View.GONE
         }
 
-        // Full-screen: app logo + caller name + accept/decline.
+        // Full-screen: optional app logo + caller name + accept/decline.
         // Avatar / call-type stay hidden (layout keeps them for optional future use).
         findViewById<ShapeableImageView>(resources.getIdentifier("avatar_img", "id", packageName))
             .visibility = View.GONE
@@ -404,7 +420,11 @@ class IncomingCallActivity : Activity() {
 
         val logoImg: ImageView =
             findViewById(resources.getIdentifier("call_logo_img", "id", packageName))
-        bindAppLogo(logoImg)
+        if (isShowLogo) {
+            bindAppLogo(logoImg)
+        } else {
+            logoImg.visibility = View.GONE
+        }
 
         val callTitleTxt: TextView =
             findViewById(resources.getIdentifier("user_name_txt", "id", packageName))

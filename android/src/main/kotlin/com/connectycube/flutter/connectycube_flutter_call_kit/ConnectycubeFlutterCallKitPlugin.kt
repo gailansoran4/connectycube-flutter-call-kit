@@ -183,6 +183,17 @@ class ConnectycubeFlutterCallKitPlugin : FlutterPlugin, MethodCallHandler,
                     val missedChannelName =
                         CallParamsHelper.missedChannelName(arguments, applicationContext!!)
 
+                    notifyAboutIncomingCall(
+                        applicationContext!!,
+                        callId,
+                        callType,
+                        callInitiatorId,
+                        callInitiatorName,
+                        callOpponents,
+                        callPhoto,
+                        userInfo
+                    )
+
                     showCallNotification(
                         applicationContext!!,
                         callId,
@@ -745,6 +756,7 @@ class CallStreamHandler(private var context: Context) : EventChannel.StreamHandl
         intentFilter.addAction(ACTION_CALL_INCOMING)
         intentFilter.addAction(ACTION_CALL_TIMEOUT)
         intentFilter.addAction(ACTION_CALL_CALLBACK)
+        intentFilter.addAction(ACTION_TOKEN_REFRESHED)
         localBroadcastManager.registerReceiver(this, intentFilter)
     }
 
@@ -763,7 +775,7 @@ class CallStreamHandler(private var context: Context) : EventChannel.StreamHandl
 
             val parameters = HashMap<String, Any?>()
             parameters["event"] = "voipToken"
-            parameters["args"] = { "voipToken" to token }
+            parameters["args"] = hashMapOf("voipToken" to token)
 
             events?.success(parameters)
             return
@@ -810,10 +822,7 @@ class CallStreamHandler(private var context: Context) : EventChannel.StreamHandl
                 callbackData["event"] = "answerCall"
 
                 events?.success(callbackData)
-
-                val launchIntent = getLaunchIntent(context!!)
-                launchIntent?.action = ACTION_CALL_ACCEPT
-                context.startActivity(launchIntent)
+                // App launch is handled by EventReceiver (avoids double startActivity).
             }
 
             ACTION_CALL_INCOMING -> {

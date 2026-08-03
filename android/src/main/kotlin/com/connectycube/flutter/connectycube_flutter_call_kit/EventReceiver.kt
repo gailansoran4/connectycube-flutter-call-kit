@@ -99,7 +99,17 @@ class EventReceiver : BroadcastReceiver() {
 
                 val launchIntent = getLaunchIntent(context)
                 launchIntent?.action = ACTION_CALL_ACCEPT
-                context.startActivity(launchIntent)
+                launchIntent?.addFlags(
+                    Intent.FLAG_ACTIVITY_NEW_TASK or
+                        Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                        Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or
+                        Intent.FLAG_ACTIVITY_CLEAR_TOP
+                )
+                try {
+                    context.startActivity(launchIntent)
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to launch app after accept: ${e.message}")
+                }
             }
 
             ACTION_CALL_NOTIFICATION_CANCELED -> {

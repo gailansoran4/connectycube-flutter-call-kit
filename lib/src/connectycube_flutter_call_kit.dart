@@ -78,6 +78,7 @@ class ConnectycubeFlutterCallKit {
     String? notificationIcon,
     String? color,
     String? logo,
+    bool? isShowLogo,
     String? backgroundColor,
     String? actionColor,
     String? textColor,
@@ -101,6 +102,7 @@ class ConnectycubeFlutterCallKit {
       notificationIcon: notificationIcon,
       color: color,
       logo: logo,
+      isShowLogo: isShowLogo,
       backgroundColor: backgroundColor,
       actionColor: actionColor,
       textColor: textColor,
@@ -222,6 +224,7 @@ class ConnectycubeFlutterCallKit {
     String? notificationIcon,
     String? color,
     String? logo,
+    bool? isShowLogo,
     String? backgroundColor,
     String? actionColor,
     String? textColor,
@@ -243,6 +246,7 @@ class ConnectycubeFlutterCallKit {
         notificationIcon: notificationIcon,
         color: color,
         logo: logo,
+        isShowLogo: isShowLogo,
         backgroundColor: backgroundColor,
         actionColor: actionColor,
         textColor: textColor,
@@ -465,7 +469,7 @@ class ConnectycubeFlutterCallKit {
         break;
 
       default:
-        throw Exception("Unrecognized event");
+        log('[ConnectycubeFlutterCallKit][_processEvent] unrecognized event: $event');
     }
   }
 
@@ -500,6 +504,7 @@ class ConnectycubeFlutterCallKit {
     String? notificationIcon,
     String? color,
     String? logo,
+    bool? isShowLogo,
     String? backgroundColor,
     String? actionColor,
     String? textColor,
@@ -517,6 +522,7 @@ class ConnectycubeFlutterCallKit {
       'notification_icon': notificationIcon,
       'color': color,
       'logo': logo,
+      'is_show_logo': isShowLogo,
       'background_color': backgroundColor,
       'action_color': actionColor,
       'text_color': textColor,

@@ -78,13 +78,36 @@ class ConnectycubeFCMReceiver : BroadcastReceiver() {
             callOpponents = ArrayList(callOpponentsString.split(',').map { it.toInt() })
         }
         val userInfo = data["user_info"] ?: JSONObject(emptyMap<String, String>()).toString()
-        val acceptButtonLabel = data["accept_button_label"]
-        val rejectButtonLabel = data["reject_button_label"]
 
         if (callType == null || callInitiatorId == null || callInitiatorName == null || callOpponents.isEmpty()) {
             Log.d(TAG, "[processInviteCallEvent] callType == null || callInitiatorId == null || callInitiatorName == null || callOpponents.isEmpty()")
             return
         }
+
+        // Push payload + persisted updateConfig defaults (same resolution as Dart API).
+        val args: Map<String, Any?> = data.mapValues { it.value as Any? }
+        val acceptButtonLabel = CallParamsHelper.acceptLabel(args)
+        val rejectButtonLabel = CallParamsHelper.rejectLabel(args)
+        val acceptButtonBgColor = CallParamsHelper.acceptBackgroundColor(args)
+        val acceptButtonTextColor = CallParamsHelper.acceptTextColor(args)
+        val rejectButtonBgColor = CallParamsHelper.rejectBackgroundColor(args)
+        val rejectButtonTextColor = CallParamsHelper.rejectTextColor(args)
+        val durationMs = CallParamsHelper.durationMs(args, applicationContext)
+        val ringtonePath = CallParamsHelper.ringtonePath(args, applicationContext)
+        val backgroundColor = CallParamsHelper.backgroundColor(args, applicationContext)
+        val backgroundUrl = CallParamsHelper.backgroundUrl(args, applicationContext)
+        val logoUrl = CallParamsHelper.logoUrl(args, applicationContext)
+        val isShowLogo = CallParamsHelper.isShowLogo(args, applicationContext)
+        val textColor = CallParamsHelper.textColor(args, applicationContext)
+        val actionColor = CallParamsHelper.actionColor(args, applicationContext)
+        val channelName = CallParamsHelper.incomingChannelName(args, applicationContext)
+        val missedShow = CallParamsHelper.missedShow(args, applicationContext)
+        val missedSubtitle = CallParamsHelper.missedSubtitle(args, applicationContext)
+        val missedCallbackText = CallParamsHelper.missedCallbackText(args, applicationContext)
+        val missedShowCallback = CallParamsHelper.missedShowCallback(args, applicationContext)
+        val missedCount = CallParamsHelper.missedCount(args)
+        val missedId = CallParamsHelper.missedId(args, callId)
+        val missedChannelName = CallParamsHelper.missedChannelName(args, applicationContext)
 
         notifyAboutIncomingCall(
             applicationContext,
@@ -96,7 +119,7 @@ class ConnectycubeFCMReceiver : BroadcastReceiver() {
             callPhoto,
             userInfo
         )
-            
+
         showCallNotification(
             applicationContext,
             callId,
@@ -107,7 +130,27 @@ class ConnectycubeFCMReceiver : BroadcastReceiver() {
             callPhoto,
             userInfo,
             acceptButtonLabel,
-            rejectButtonLabel
+            rejectButtonLabel,
+            acceptButtonBgColor,
+            acceptButtonTextColor,
+            rejectButtonBgColor,
+            rejectButtonTextColor,
+            durationMs,
+            ringtonePath,
+            backgroundColor,
+            backgroundUrl,
+            logoUrl,
+            isShowLogo,
+            textColor,
+            actionColor,
+            channelName,
+            missedShow,
+            missedSubtitle,
+            missedCallbackText,
+            missedShowCallback,
+            missedCount,
+            missedId,
+            missedChannelName
         )
 
         saveCallState(applicationContext, callId, CALL_STATE_PENDING)

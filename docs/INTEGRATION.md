@@ -121,6 +121,7 @@ ConnectycubeFlutterCallKit.instance.init(
   icon: 'assets/image/call_icon.png',
   background: 'assets/image/call_background.png', // Android only
   logo: 'assets/image/call_icon.png',             // Android only
+  isShowLogo: true,                                // Android full-screen logo
   color: '#0955FA',                                // Android accent
   backgroundColor: '#0955FA',                      // Android only
   actionColor: '#0955FA',                          // Android only
@@ -272,7 +273,8 @@ if (!canFullScreen) {
 - Flutter asset paths (`assets/...`) accepted for ringtone / icon / logo /
   background on Android, and for ringtone / CallKit icon on iOS.
 - Android full-screen incoming UI: background image/color + caller name
-  (+ accept/decline buttons). Avatar, call type, and logo are hidden.
+  (+ accept/decline buttons). Avatar and call type are hidden; app logo
+  shows when `isShowLogo` is true.
 - Android heads-up notification left icon: logo only (never caller photo);
   caller name is still shown as the title.
 - Android Accept/Decline button customization: label, background color, and

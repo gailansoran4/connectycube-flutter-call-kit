@@ -1,9 +1,10 @@
 import 'dart:async';
+import 'dart:io' show Platform;
+import 'dart:math';
 
 import 'package:connectycube_flutter_call_kit/connectycube_flutter_call_kit.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import 'dart:io' show Platform;
 
 @pragma('vm:entry-point')
 Future<void> onCallAcceptedWhenTerminated(CallEvent event) async {
@@ -97,6 +98,7 @@ class _CallKitExampleAppState extends State<CallKitExampleApp> {
           (!kIsWeb && Platform.isAndroid) ? 'assets/image/call_background.png' : null,
       color: '#0955FA',
       logo: (!kIsWeb && Platform.isAndroid) ? 'assets/image/call_icon.png' : null,
+      isShowLogo: !kIsWeb && Platform.isAndroid,
       backgroundColor: '#0955FA',
       actionColor: '#0955FA',
       textColor: '#FFFFFF',
@@ -108,27 +110,26 @@ class _CallKitExampleAppState extends State<CallKitExampleApp> {
       defaultDurationMs: 30000,
     );
 
-    // Persist logo (heads-up left icon) + background (full-screen only).
-    await ConnectycubeFlutterCallKit.instance.updateConfig(
-      logo: (!kIsWeb && Platform.isAndroid) ? 'assets/image/call_icon.png' : null,
-      background: (!kIsWeb && Platform.isAndroid)
-          ? 'assets/image/call_background.png'
-          : null,
-      ringtone: 'assets/ringtone/call_ring',
-      icon: 'assets/image/call_icon.png',
-      color: '#0955FA',
-      backgroundColor: '#0955FA',
-      showMissedCallNotification: true,
-      showMissedCallCallback: true,
-      defaultDurationMs: 30000,
-    );
-
     setState(() => _configured = true);
     _log('CallKit configured');
   }
 
+  /// iOS CallKit requires a real UUID string for sessionId.
+  String _newSessionId() {
+    final r = Random.secure();
+    final b = List<int>.generate(16, (_) => r.nextInt(256));
+    b[6] = (b[6] & 0x0f) | 0x40;
+    b[8] = (b[8] & 0x3f) | 0x80;
+    String h(int i) => b[i].toRadixString(16).padLeft(2, '0');
+    return '${h(0)}${h(1)}${h(2)}${h(3)}-'
+        '${h(4)}${h(5)}-'
+        '${h(6)}${h(7)}-'
+        '${h(8)}${h(9)}-'
+        '${h(10)}${h(11)}${h(12)}${h(13)}${h(14)}${h(15)}';
+  }
+
   CallEvent _buildEvent({int durationMs = 30000}) {
-    final sessionId = DateTime.now().millisecondsSinceEpoch.toString();
+    final sessionId = _newSessionId();
     _lastSessionId = sessionId;
     return CallEvent(
       sessionId: sessionId,

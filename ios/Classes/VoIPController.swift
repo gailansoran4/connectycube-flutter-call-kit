@@ -59,7 +59,11 @@ extension VoIPController: PKPushRegistryDelegate {
             let signalingType = callData["signal_type"] as? String
             
             if (signalingType != nil && (signalingType == "endCall" || signalingType == "rejectCall")) {
-                self.callKitController.reportCallEnded(uuid: UUID(uuidString: callId.lowercased())!, reason: CallEndedReason.remoteEnded)
+                if let callUUID = CallKitController.parseUUID(callId) {
+                    self.callKitController.reportCallEnded(uuid: callUUID, reason: CallEndedReason.remoteEnded)
+                } else {
+                    print("[VoIPController] invalid session_id for endCall: \(callId)")
+                }
                 
                 completion()
             } else if (signalingType != nil && signalingType == "startCall") {

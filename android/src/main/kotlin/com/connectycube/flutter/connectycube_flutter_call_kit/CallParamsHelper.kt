@@ -91,7 +91,14 @@ object CallParamsHelper {
         if (androidMap?.containsKey("is_show_logo") == true) {
             return readBool(androidMap["is_show_logo"], false)
         }
-        return getBoolean(context, "is_show_logo")
+        if (arguments.containsKey("is_show_logo")) {
+            return readBool(arguments["is_show_logo"], false)
+        }
+        if (contextContainsKey(context, "is_show_logo")) {
+            return getBoolean(context, "is_show_logo")
+        }
+        // Default: show logo on full-screen when one was configured via updateConfig.
+        return !TextUtils.isEmpty(getString(context, "logo"))
     }
 
     fun textColor(arguments: Map<String, Any?>, context: android.content.Context): String? {

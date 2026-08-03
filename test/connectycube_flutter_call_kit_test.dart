@@ -456,13 +456,13 @@ void main() {
       expect(log, ['timeout:flow-1', 'callback:flow-1']);
     });
 
-    test('unrecognized event throws', () {
+    test('unrecognized event is ignored (does not throw)', () {
       expect(
         () => ConnectycubeFlutterCallKit.debugProcessEvent({
           'event': 'notARealEvent',
           'args': <String, dynamic>{},
         }),
-        throwsException,
+        returnsNormally,
       );
     });
   });

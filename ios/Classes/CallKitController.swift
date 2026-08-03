@@ -353,10 +353,20 @@ class CallKitController : NSObject {
         update.supportsHolding = iosParams?["supports_holding"] as? Bool ?? false
         update.supportsDTMF = iosParams?["supports_dtmf"] as? Bool ?? false
         
+        guard let callUUID = Self.parseUUID(uuid) else {
+            print("[CallKitController][reportIncomingCall] invalid session_id (need UUID): \(uuid)")
+            completion?(NSError(
+                domain: "ConnectycubeFlutterCallKit",
+                code: 1,
+                userInfo: [NSLocalizedDescriptionKey: "session_id must be a valid UUID string"]
+            ))
+            return
+        }
+
         if (self.currentCallData["session_id"] == nil || self.currentCallData["session_id"] as! String != uuid) {
             print("[CallKitController][reportIncomingCall] report new call: \(uuid)")
             
-            provider.reportNewIncomingCall(with: UUID(uuidString: uuid)!, update: update) { error in
+            provider.reportNewIncomingCall(with: callUUID, update: update) { error in
                 completion?(error)
                 
                 if(error == nil){
@@ -377,17 +387,22 @@ class CallKitController : NSObject {
                     self.callsData[uuid] = self.currentCallData
                     self.pendingTimeoutHandled.remove(uuid)
 
-                    self.actionListener?(.incomingCall, UUID(uuidString: uuid)!, self.currentCallData)
+                    self.actionListener?(.incomingCall, callUUID, self.currentCallData)
                     self.scheduleTimeout(uuid: uuid, durationMs: durationMs ?? self.defaultDurationMs)
                 }
             }
         } else if (self.currentCallData["session_id"] as! String == uuid) {
             print("[CallKitController][reportIncomingCall] update existing call: \(uuid)")
             
-            provider.reportCall(with: UUID(uuidString: uuid)!, updated: update)
+            provider.reportCall(with: callUUID, updated: update)
             
             completion?(nil)
         }
+    }
+
+    /// CallKit requires a real UUID; returns nil for timestamps / other non-UUID ids.
+    static func parseUUID(_ value: String) -> UUID? {
+        return UUID(uuidString: value)
     }
 
     private func scheduleTimeout(uuid: String, durationMs: Int) {
@@ -410,9 +425,10 @@ class CallKitController : NSObject {
         cancelTimeout(uuid: uuid)
 
         let data = callsData[uuid] ?? currentCallData
-        actionListener?(.timeoutCall, UUID(uuidString: uuid) ?? UUID(), data)
+        let callUUID = Self.parseUUID(uuid) ?? UUID()
+        actionListener?(.timeoutCall, callUUID, data)
         showMissedFromCallData(data)
-        reportCallEnded(uuid: UUID(uuidString: uuid)!, reason: .unanswered)
+        reportCallEnded(uuid: callUUID, reason: .unanswered)
     }
 
     func showMissedFromCallData(_ data: [String: Any]) {
@@ -561,13 +577,14 @@ extension CallKitController {
         print("[CallKitController][startCall] handle:\(handle), videoEnabled: \(videoEnabled) uuid: \(uuid ?? "nil")")
         
         let handle = CXHandle(type: .generic, value: handle)
-        let callUUID = uuid == nil ? UUID() : UUID(uuidString: uuid!)
-        let startCallAction = CXStartCallAction(call: callUUID!, handle: handle)
+        let callUUID = uuid.flatMap { Self.parseUUID($0) } ?? UUID()
+        let startCallAction = CXStartCallAction(call: callUUID, handle: handle)
         startCallAction.isVideo = videoEnabled
         
         let transaction = CXTransaction(action: startCallAction)
         
-        self.callStates[uuid!.lowercased()] = .accepted
+        let stateKey = (uuid ?? callUUID.uuidString).lowercased()
+        self.callStates[stateKey] = .accepted
         
         requestTransaction(transaction);
     }
@@ -575,8 +592,11 @@ extension CallKitController {
     func answerCall(uuid: String) {
         print("[CallKitController][answerCall] uuid: \(uuid)")
         
-        let callUUID = UUID(uuidString: uuid)
-        let answerCallAction = CXAnswerCallAction(call: callUUID!)
+        guard let callUUID = Self.parseUUID(uuid) else {
+            print("[CallKitController][answerCall] invalid uuid: \(uuid)")
+            return
+        }
+        let answerCallAction = CXAnswerCallAction(call: callUUID)
         let transaction = CXTransaction(action: answerCallAction)
         
         self.callStates[uuid.lowercased()] = .accepted

@@ -201,9 +201,13 @@ public class SwiftConnectycubeFlutterCallKitPlugin: NSObject, FlutterPlugin {
             }
             let callId = arguments["session_id"] as! String
             let reason = arguments["reason"] as! String
-            
-            
-            SwiftConnectycubeFlutterCallKitPlugin.callController.reportCallEnded(uuid: UUID(uuidString: callId)!, reason: CallEndedReason.init(rawValue: reason)!);
+
+            guard let callUUID = CallKitController.parseUUID(callId),
+                  let endedReason = CallEndedReason(rawValue: reason) else {
+                result(FlutterError(code: "invalid_argument", message: "session_id must be a UUID and reason must be valid.", details: nil))
+                return
+            }
+            SwiftConnectycubeFlutterCallKitPlugin.callController.reportCallEnded(uuid: callUUID, reason: endedReason)
             result(true);
         }
         else if call.method == "reportCallEnded" {
@@ -212,7 +216,11 @@ public class SwiftConnectycubeFlutterCallKitPlugin: NSObject, FlutterPlugin {
                 return
             }
             let callId = arguments["session_id"] as! String
-            SwiftConnectycubeFlutterCallKitPlugin.callController.end(uuid: UUID(uuidString: callId)!)
+            guard let callUUID = CallKitController.parseUUID(callId) else {
+                result(FlutterError(code: "invalid_argument", message: "session_id must be a valid UUID string.", details: nil))
+                return
+            }
+            SwiftConnectycubeFlutterCallKitPlugin.callController.end(uuid: callUUID)
             result(true)
         }
         else if call.method == "muteCall" {
@@ -222,8 +230,11 @@ public class SwiftConnectycubeFlutterCallKitPlugin: NSObject, FlutterPlugin {
             }
             let callId = arguments["session_id"] as! String
             let muted = arguments["muted"] as! Bool
-            
-            SwiftConnectycubeFlutterCallKitPlugin.callController.setMute(uuid: UUID(uuidString: callId)!, muted: muted)
+            guard let callUUID = CallKitController.parseUUID(callId) else {
+                result(FlutterError(code: "invalid_argument", message: "session_id must be a valid UUID string.", details: nil))
+                return
+            }
+            SwiftConnectycubeFlutterCallKitPlugin.callController.setMute(uuid: callUUID, muted: muted)
             result(true)
         }
         else if call.method == "getCallState" {
@@ -265,17 +276,6 @@ public class SwiftConnectycubeFlutterCallKitPlugin: NSObject, FlutterPlugin {
         }
         else if call.method == "getLastCallId" {
             result(SwiftConnectycubeFlutterCallKitPlugin.callController.currentCallData["session_id"])
-        }
-        else if call.method == "muteCall" {
-            guard let arguments = arguments else {
-                result(FlutterError(code: "invalid_argument", message: "No data was provided.", details: nil))
-                return
-            }
-            let callId = arguments["session_id"] as! String
-            let muted = arguments["muted"] as! Bool
-            
-            SwiftConnectycubeFlutterCallKitPlugin.callController.setMute(uuid: UUID(uuidString: callId)!, muted: muted)
-            result(true)
         }
         else if call.method == "canUseFullScreenIntent" {
             result(true)

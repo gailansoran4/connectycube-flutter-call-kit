@@ -28,6 +28,7 @@ import com.connectycube.flutter.connectycube_flutter_call_kit.utils.getDefaultLo
 import com.connectycube.flutter.connectycube_flutter_call_kit.utils.getDefaultPhoto
 import com.connectycube.flutter.connectycube_flutter_call_kit.utils.getPhotoPlaceholderResId
 import com.connectycube.flutter.connectycube_flutter_call_kit.utils.getString
+import com.connectycube.flutter.connectycube_flutter_call_kit.utils.isApplicationForeground
 import com.connectycube.flutter.connectycube_flutter_call_kit.utils.resolveDrawableOrAssetUrl
 import com.connectycube.flutter.connectycube_flutter_call_kit.utils.resolveRingtoneUri
 import kotlinx.coroutines.CoroutineScope
@@ -188,6 +189,53 @@ fun showCallNotification(
         // (OEM skins would draw a second icon and break the layout).
         postNotification(callId.hashCode(), notificationManager, builder)
     }
+
+    if (!notificationManager.areNotificationsEnabled()) {
+        Log.w(
+            "NotificationsManager",
+            "[showCallNotification] notifications disabled – UI may not appear"
+        )
+    }
+
+    // Full-screen intent is suppressed while the app is interactive/foreground, so
+    // launch IncomingCallActivity directly in that case. When background/locked,
+    // rely on the full-screen intent (background activity starts are restricted).
+    if (isApplicationForeground(context)) {
+        try {
+            val intent = createStartIncomingScreenIntent(
+                context,
+                callId,
+                callType,
+                callInitiatorId,
+                callInitiatorName,
+                callOpponents,
+                callPhoto,
+                userInfo,
+                acceptButtonLabel,
+                rejectButtonLabel,
+                acceptButtonBgColor,
+                acceptButtonTextColor,
+                rejectButtonBgColor,
+                rejectButtonTextColor,
+                durationMs,
+                backgroundColor,
+                backgroundUrl,
+                logoUrl,
+                isShowLogo,
+                textColor
+            )
+            context.startActivity(intent)
+            Log.d(
+                "NotificationsManager",
+                "[showCallNotification] started IncomingCallActivity (foreground)"
+            )
+        } catch (e: Exception) {
+            Log.w(
+                "NotificationsManager",
+                "[showCallNotification] startActivity failed: ${e.message}"
+            )
+        }
+    }
 }
 
 fun showMissCallNotification(
@@ -232,10 +280,12 @@ fun showMissCallNotification(
     callData.putInt(EXTRA_MISSED_COUNT, missedCount)
     callData.putString(EXTRA_MISSED_ID, missedId)
 
+    val missedCallTypeTitle =
+        "Missed ${if (callType == 1) "Video" else "Audio"} call"
     val missedSound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
     val builder = NotificationCompat.Builder(context, MISSED_CALL_CHANNEL_ID)
         .setContentTitle(callInitiatorName)
-        .setContentText(if (TextUtils.isEmpty(userInfo)) "" else "")
+        .setContentText(missedCallTypeTitle)
         .setSubText(missedSubtitle)
         .setSmallIcon(resolveMissedSmallIcon(context, callType))
         .setAutoCancel(true)
@@ -464,8 +514,9 @@ fun loadLogoAndPostNotification(
         }
 
         if (usesCustomRemoteViews && callData != null) {
-            val rejectIntent = getRejectCallIntent(context, callData, title.hashCode())
-            val acceptIntent = getAcceptCallIntent(context, callData, title.hashCode())
+            val requestCode = (callData.getString(EXTRA_CALL_ID) ?: title).hashCode()
+            val rejectIntent = getRejectCallIntent(context, callData, requestCode)
+            val acceptIntent = getAcceptCallIntent(context, callData, requestCode)
             val headsUpViews = buildCallRemoteViews(
                 context,
                 "notification_incoming_call_heads_up",
@@ -547,8 +598,9 @@ fun createCallNotification(
         .setImportant(true)
         .build()
 
-    val rejectIntent = getRejectCallIntent(context, callData, title.hashCode())
-    val acceptIntent = getAcceptCallIntent(context, callData, title.hashCode())
+    val requestCode = (callData.getString(EXTRA_CALL_ID) ?: title).hashCode()
+    val rejectIntent = getRejectCallIntent(context, callData, requestCode)
+    val acceptIntent = getAcceptCallIntent(context, callData, requestCode)
 
     val notificationBuilder = NotificationCompat.Builder(context, CALL_CHANNEL_ID)
     notificationBuilder
@@ -598,6 +650,39 @@ fun createCallNotification(
         appIcon
     )
     applyCustomCallRemoteViews(notificationBuilder, headsUpViews, bigViews)
+
+    // Body tap opens the full-screen incoming UI (Accept/Decline still use their own intents).
+    val contentPendingIntent = PendingIntent.getActivity(
+        context,
+        requestCode,
+        createStartIncomingScreenIntent(
+            context,
+            callData.getString(EXTRA_CALL_ID) ?: "",
+            callData.getInt(EXTRA_CALL_TYPE, 0),
+            callData.getInt(EXTRA_CALL_INITIATOR_ID, 0),
+            callData.getString(EXTRA_CALL_INITIATOR_NAME) ?: title,
+            callData.getIntegerArrayList(EXTRA_CALL_OPPONENTS) ?: arrayListOf(),
+            callData.getString(EXTRA_CALL_PHOTO),
+            callData.getString(EXTRA_CALL_USER_INFO) ?: "{}",
+            callData.getString(EXTRA_ACCEPT_BUTTON_LABEL),
+            callData.getString(EXTRA_REJECT_BUTTON_LABEL),
+            callData.getString(EXTRA_ACCEPT_BUTTON_BG_COLOR),
+            callData.getString(EXTRA_ACCEPT_BUTTON_TEXT_COLOR),
+            callData.getString(EXTRA_REJECT_BUTTON_BG_COLOR),
+            callData.getString(EXTRA_REJECT_BUTTON_TEXT_COLOR),
+            callData.getLong(EXTRA_CALL_DURATION, durationMs),
+            callData.getString(EXTRA_BACKGROUND_COLOR),
+            callData.getString(EXTRA_BACKGROUND_URL),
+            callData.getString(EXTRA_LOGO_URL),
+            callData.getBoolean(EXTRA_IS_SHOW_LOGO, false),
+            callData.getString(EXTRA_TEXT_COLOR)
+        ),
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        else PendingIntent.FLAG_UPDATE_CURRENT
+    )
+    notificationBuilder.setContentIntent(contentPendingIntent)
+
     return notificationBuilder
 }
 
