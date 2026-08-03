@@ -77,7 +77,9 @@ class ConnectycubeFCMReceiver : BroadcastReceiver() {
         if (callOpponentsString != null) {
             callOpponents = ArrayList(callOpponentsString.split(',').map { it.toInt() })
         }
-        val userInfo = data["user_info"] ?: JSONObject(emptyMap<String, String>()).toString()
+        // Prefer explicit user_info JSON; otherwise pass through flat FCM data keys
+        // (e.g. order_id) so accept/reject handlers still receive them.
+        val userInfo = data["user_info"] ?: JSONObject(data as Map<*, *>).toString()
 
         if (callType == null || callInitiatorId == null || callInitiatorName == null || callOpponents.isEmpty()) {
             Log.d(TAG, "[processInviteCallEvent] callType == null || callInitiatorId == null || callInitiatorName == null || callOpponents.isEmpty()")
