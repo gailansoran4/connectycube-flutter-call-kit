@@ -99,7 +99,15 @@ fun showCallNotification(
         missedCount, missedId, missedChannelName
     )
 
-    val defaultPhoto = getDefaultPhoto(context)
+    // App icon / logo for the custom notification content (never caller photo).
+    val logoFallback = getDefaultLogo(context, logoUrl)
+    val configuredLogoUrl = getConfiguredLogoLoadUrl(context, logoUrl)
+    val remoteLogo = when {
+        !TextUtils.isEmpty(configuredLogoUrl) &&
+            configuredLogoUrl!!.startsWith("http", true) -> configuredLogoUrl
+        !TextUtils.isEmpty(logoUrl) && logoUrl!!.startsWith("http", true) -> logoUrl
+        else -> null
+    }
 
     val builder: NotificationCompat.Builder =
         createCallNotification(
@@ -115,7 +123,8 @@ fun showCallNotification(
             acceptButtonBgColor,
             acceptButtonTextColor,
             rejectButtonBgColor,
-            rejectButtonTextColor
+            rejectButtonTextColor,
+            logoFallback
         )
 
     addCallFullScreenIntent(
@@ -153,15 +162,14 @@ fun showCallNotification(
     setNotificationColor(context, builder, actionColor)
     createCallNotificationChannel(notificationManager, ringtone, channelName)
 
-    // Heads-up left icon: logo only (never caller photo / avatar).
-    val logoFallback = getDefaultLogo(context, logoUrl)
-    val configuredLogoUrl = getConfiguredLogoLoadUrl(context, logoUrl)
-    val remoteLogo = when {
-        !TextUtils.isEmpty(configuredLogoUrl) &&
-            configuredLogoUrl!!.startsWith("http", true) -> configuredLogoUrl
-        !TextUtils.isEmpty(logoUrl) && logoUrl!!.startsWith("http", true) -> logoUrl
-        else -> null
-    }
+    val usesCustomRemoteViews = hasCustomCallButtons(
+        acceptButtonLabel,
+        rejectButtonLabel,
+        acceptButtonBgColor,
+        acceptButtonTextColor,
+        rejectButtonBgColor,
+        rejectButtonTextColor
+    )
 
     if (remoteLogo != null) {
         loadLogoAndPostNotification(
@@ -170,10 +178,25 @@ fun showCallNotification(
             builder,
             callId.hashCode(),
             remoteLogo,
-            logoFallback
+            logoFallback,
+            usesCustomRemoteViews,
+            callInitiatorName,
+            callTypeTitle,
+            acceptButtonLabel,
+            rejectButtonLabel,
+            acceptButtonBgColor,
+            acceptButtonTextColor,
+            rejectButtonBgColor,
+            rejectButtonTextColor,
+            callData
         )
     } else {
-        setNotificationLargeIcon(builder, logoFallback)
+        if (!usesCustomRemoteViews) {
+            // CallStyle path: system largeIcon on the right.
+            setNotificationLargeIcon(builder, logoFallback)
+        }
+        // Custom RemoteViews already embed the app icon — skip largeIcon
+        // so the system shade keeps a clean light/dark card.
         postNotification(callId.hashCode(), notificationManager, builder)
     }
 }
@@ -425,7 +448,17 @@ fun loadLogoAndPostNotification(
     builder: NotificationCompat.Builder,
     notificationId: Int,
     logoUrl: String,
-    defaultLogo: Bitmap
+    defaultLogo: Bitmap,
+    usesCustomRemoteViews: Boolean = false,
+    title: String = "",
+    callName: String? = null,
+    acceptButtonLabel: String? = null,
+    rejectButtonLabel: String? = null,
+    acceptButtonBgColor: String? = null,
+    acceptButtonTextColor: String? = null,
+    rejectButtonBgColor: String? = null,
+    rejectButtonTextColor: String? = null,
+    callData: Bundle? = null
 ) {
     CoroutineScope(Dispatchers.IO).launch {
         val loadUrl = resolveDrawableOrAssetUrl(context, logoUrl) ?: logoUrl
@@ -435,15 +468,37 @@ fun loadLogoAndPostNotification(
             .transform(CircleCrop())
             .submit()
 
-        try {
-            val bitmap = futureTarget.get()
-            builder.setLargeIcon(bitmap)
-            Glide.with(context).clear(futureTarget)
-            postNotification(notificationId, notificationManager, builder)
+        val bitmap = try {
+            futureTarget.get().also { Glide.with(context).clear(futureTarget) }
         } catch (_: Exception) {
-            builder.setLargeIcon(defaultLogo)
-            postNotification(notificationId, notificationManager, builder)
+            defaultLogo
         }
+
+        if (usesCustomRemoteViews && callData != null) {
+            val rejectIntent = getRejectCallIntent(context, callData, title.hashCode())
+            val acceptIntent = getAcceptCallIntent(context, callData, title.hashCode())
+            val remoteViews = buildCallRemoteViews(
+                context,
+                title,
+                callName,
+                acceptButtonLabel,
+                rejectButtonLabel,
+                acceptButtonBgColor,
+                acceptButtonTextColor,
+                rejectButtonBgColor,
+                rejectButtonTextColor,
+                rejectIntent,
+                acceptIntent,
+                bitmap
+            )
+            builder
+                .setCustomContentView(remoteViews)
+                .setCustomBigContentView(remoteViews)
+                .setCustomHeadsUpContentView(remoteViews)
+        } else {
+            builder.setLargeIcon(bitmap)
+        }
+        postNotification(notificationId, notificationManager, builder)
     }
 }
 
@@ -451,6 +506,22 @@ fun getLaunchIntent(context: Context): Intent? {
     val packageName = context.packageName
     val packageManager: PackageManager = context.packageManager
     return packageManager.getLaunchIntentForPackage(packageName)
+}
+
+fun hasCustomCallButtons(
+    acceptButtonLabel: String?,
+    rejectButtonLabel: String?,
+    acceptButtonBgColor: String?,
+    acceptButtonTextColor: String?,
+    rejectButtonBgColor: String?,
+    rejectButtonTextColor: String?
+): Boolean {
+    return !TextUtils.isEmpty(acceptButtonLabel) ||
+        !TextUtils.isEmpty(rejectButtonLabel) ||
+        !TextUtils.isEmpty(acceptButtonBgColor) ||
+        !TextUtils.isEmpty(acceptButtonTextColor) ||
+        !TextUtils.isEmpty(rejectButtonBgColor) ||
+        !TextUtils.isEmpty(rejectButtonTextColor)
 }
 
 fun createCallNotification(
@@ -466,7 +537,8 @@ fun createCallNotification(
     acceptButtonBgColor: String? = null,
     acceptButtonTextColor: String? = null,
     rejectButtonBgColor: String? = null,
-    rejectButtonTextColor: String? = null
+    rejectButtonTextColor: String? = null,
+    appIcon: Bitmap? = null
 ): NotificationCompat.Builder {
     val person = Person.Builder()
         .setName(title)
@@ -476,12 +548,14 @@ fun createCallNotification(
     val rejectIntent = getRejectCallIntent(context, callData, title.hashCode())
     val acceptIntent = getAcceptCallIntent(context, callData, title.hashCode())
 
-    val hasCustomButtons = !TextUtils.isEmpty(acceptButtonLabel) ||
-        !TextUtils.isEmpty(rejectButtonLabel) ||
-        !TextUtils.isEmpty(acceptButtonBgColor) ||
-        !TextUtils.isEmpty(acceptButtonTextColor) ||
-        !TextUtils.isEmpty(rejectButtonBgColor) ||
-        !TextUtils.isEmpty(rejectButtonTextColor)
+    val hasCustomButtons = hasCustomCallButtons(
+        acceptButtonLabel,
+        rejectButtonLabel,
+        acceptButtonBgColor,
+        acceptButtonTextColor,
+        rejectButtonBgColor,
+        rejectButtonTextColor
+    )
 
     val notificationBuilder = NotificationCompat.Builder(context, CALL_CHANNEL_ID)
     notificationBuilder
@@ -498,6 +572,8 @@ fun createCallNotification(
     if (hasCustomButtons) {
         // CallStyle does not allow custom action labels/colors, so render the
         // notification with a custom layout when button customization is requested.
+        // App icon is drawn inside the RemoteViews; no system largeIcon so the
+        // shade keeps native light/dark card chrome.
         val remoteViews = buildCallRemoteViews(
             context,
             title,
@@ -509,7 +585,8 @@ fun createCallNotification(
             rejectButtonBgColor,
             rejectButtonTextColor,
             rejectIntent,
-            acceptIntent
+            acceptIntent,
+            appIcon
         )
         notificationBuilder
             .setContentTitle(title)
@@ -548,16 +625,31 @@ fun buildCallRemoteViews(
     rejectButtonBgColor: String?,
     rejectButtonTextColor: String?,
     rejectIntent: PendingIntent,
-    acceptIntent: PendingIntent
+    acceptIntent: PendingIntent,
+    appIcon: Bitmap? = null
 ): RemoteViews {
     val res = context.resources
     val pkg = context.packageName
     val remoteViews =
         RemoteViews(pkg, res.getIdentifier("notification_incoming_call", "layout", pkg))
+    val appIconId = res.getIdentifier("notification_app_icon_img", "id", pkg)
     val callerNameTxtId = res.getIdentifier("notification_caller_name_txt", "id", pkg)
     val callTypeTxtId = res.getIdentifier("notification_call_type_txt", "id", pkg)
     val rejectBtnId = res.getIdentifier("notification_reject_btn", "id", pkg)
     val acceptBtnId = res.getIdentifier("notification_accept_btn", "id", pkg)
+
+    if (appIcon != null && appIconId != 0) {
+        remoteViews.setImageViewBitmap(appIconId, appIcon)
+        remoteViews.setViewVisibility(appIconId, android.view.View.VISIBLE)
+    } else if (appIconId != 0) {
+        val appIconRes = context.applicationInfo.icon
+        if (appIconRes != 0) {
+            remoteViews.setImageViewResource(appIconId, appIconRes)
+            remoteViews.setViewVisibility(appIconId, android.view.View.VISIBLE)
+        } else {
+            remoteViews.setViewVisibility(appIconId, android.view.View.GONE)
+        }
+    }
 
     remoteViews.setTextViewText(callerNameTxtId, title)
     remoteViews.setTextViewText(callTypeTxtId, callName ?: "")

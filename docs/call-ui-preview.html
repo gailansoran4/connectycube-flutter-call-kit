@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CallKit UI Preview</title>
+  <style>
+    :root {
+      --bg: #0955FA;
+      --accept: #00C853;
+      --decline: #D50000;
+      --text: #FBFBFB;
+      --ripple-red: #FF5A33;
+      --ripple-green: #80CB83;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: Roboto, "Noto Sans", system-ui, sans-serif;
+      background: #0e1014;
+      color: #e8eaed;
+      min-height: 100vh;
+      padding: 28px 20px 48px;
+    }
+
+    h1 { font-size: 20px; font-weight: 600; margin-bottom: 6px; }
+    .subtitle {
+      color: #9aa0a6;
+      font-size: 13px;
+      line-height: 1.45;
+      margin-bottom: 20px;
+      max-width: 1100px;
+    }
+    .subtitle code, .meta code, .note code {
+      font-size: 11px;
+      background: #1c1f26;
+      padding: 0 4px;
+      border-radius: 3px;
+    }
+
+    .theme-toggle {
+      display: inline-flex;
+      gap: 8px;
+      margin-bottom: 24px;
+    }
+    .theme-toggle button {
+      border: 1px solid #3c4043;
+      background: #1c1f26;
+      color: #e8eaed;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .theme-toggle button.active {
+      background: #0955FA;
+      border-color: #0955FA;
+    }
+
+    .grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 32px;
+      align-items: flex-start;
+    }
+    .panel { width: 360px; }
+    .panel h2 { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+    .meta {
+      color: #9aa0a6;
+      font-size: 11px;
+      line-height: 1.4;
+      margin-bottom: 12px;
+      min-height: 32px;
+    }
+
+    .phone {
+      width: 360px;
+      height: 640px;
+      border-radius: 28px;
+      border: 10px solid #22262e;
+      background: #000;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 16px 40px rgba(0,0,0,.5);
+    }
+
+    .status-bar {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 24px;
+      padding: 0 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+      font-weight: 500;
+      color: #fff;
+      z-index: 30;
+      pointer-events: none;
+    }
+
+    /* System notification card — light / dark */
+    body[data-theme="light"] {
+      --notif-card: #fff;
+      --notif-title: #1f1f1f;
+      --notif-sub: #5f6368;
+      --notif-app: #5f6368;
+      --shade: rgba(232, 234, 237, .92);
+    }
+    body[data-theme="dark"] {
+      --notif-card: #2d2e30;
+      --notif-title: #e8eaed;
+      --notif-sub: #9aa0a6;
+      --notif-app: #9aa0a6;
+      --shade: rgba(32, 33, 36, .92);
+    }
+
+    .android-notif {
+      background: var(--notif-card);
+      border-radius: 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,.28);
+      overflow: hidden;
+    }
+
+    .android-notif-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 12px 0;
+    }
+    .android-notif-small-icon {
+      width: 16px; height: 16px;
+      border-radius: 3px;
+      background: var(--bg);
+      display: grid;
+      place-items: center;
+      flex-shrink: 0;
+    }
+    .android-notif-small-icon svg { width: 10px; height: 10px; fill: #fff; }
+    .android-notif-app {
+      font-size: 12px;
+      color: var(--notif-app);
+      flex: 1;
+      min-width: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .android-notif-time { font-size: 12px; color: var(--notif-sub); }
+
+    /* Mirrors notification_incoming_call.xml */
+    .remote-views {
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+    }
+    .remote-top {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .app-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: var(--bg);
+      display: grid;
+      place-items: center;
+      flex-shrink: 0;
+      overflow: hidden;
+    }
+    .app-icon svg { width: 22px; height: 22px; fill: #fff; }
+    .remote-text { flex: 1; min-width: 0; }
+    .caller-name {
+      font-size: 14px;
+      font-weight: 700;
+      line-height: 18px;
+      color: var(--notif-title);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .call-type {
+      font-size: 12px;
+      line-height: 16px;
+      margin-top: 2px;
+      color: var(--notif-sub);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .btn-row {
+      display: flex;
+      gap: 12px;
+      margin-top: 12px;
+    }
+    .btn-pill {
+      flex: 1;
+      min-width: 0;
+      text-align: center;
+      font-size: 14px;
+      font-weight: 700;
+      color: #fff;
+      border: none;
+      border-radius: 24px;
+      padding: 10px 12px;
+      font-family: inherit;
+      cursor: default;
+    }
+    .btn-pill.decline { background: var(--decline); }
+    .btn-pill.accept  { background: var(--accept); }
+
+    .shade {
+      position: absolute;
+      inset: 0;
+      background: var(--shade);
+      padding: 36px 12px 16px;
+      z-index: 5;
+    }
+    .shade-qs {
+      height: 48px;
+      margin-bottom: 12px;
+      border-radius: 16px;
+      background: rgba(127,127,127,.12);
+    }
+
+    .home-wallpaper {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(165deg, #1b2433 0%, #314057 55%, #1a2230 100%);
+    }
+    .home-grid {
+      position: absolute;
+      top: 48px; left: 20px; right: 20px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 18px 14px;
+      opacity: .28;
+    }
+    .home-grid i {
+      display: block;
+      aspect-ratio: 1;
+      border-radius: 16px;
+      background: #fff;
+    }
+    .banner-slot {
+      position: absolute;
+      top: 28px; left: 8px; right: 8px;
+      z-index: 10;
+    }
+
+    /* Full screen — own colored background (not system theme) */
+    .fullscreen {
+      position: absolute;
+      inset: 0;
+      background: var(--bg);
+      z-index: 5;
+    }
+    .fs-bg-img {
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse at 50% 28%, rgba(255,255,255,.2) 0%, transparent 50%),
+        linear-gradient(180deg, #3d7aff 0%, var(--bg) 45%, #0639b0 100%);
+    }
+    .fs-top {
+      position: absolute;
+      top: 72px;
+      left: 24px;
+      right: 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      z-index: 2;
+    }
+    .fs-logo {
+      width: 72px;
+      height: 72px;
+      border-radius: 16px;
+      background: rgba(255,255,255,.18);
+      border: 1px solid rgba(255,255,255,.25);
+      display: grid;
+      place-items: center;
+    }
+    .fs-logo svg { width: 36px; height: 36px; fill: #fff; }
+    .fs-name {
+      margin-top: 16px;
+      font-size: 24px;
+      font-weight: 700;
+      line-height: 30px;
+      color: var(--text);
+      text-shadow: 1px 1px 4px rgba(0,0,0,.5);
+      text-align: center;
+      max-width: 100%;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .fs-actions {
+      position: absolute;
+      left: 24px; right: 24px;
+      bottom: 40px;
+      display: flex;
+      z-index: 2;
+    }
+    .fs-col {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .fs-btn-wrap {
+      width: 96px;
+      height: 96px;
+      position: relative;
+      display: grid;
+      place-items: center;
+    }
+    .ripple {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      pointer-events: none;
+    }
+    .ripple span {
+      position: absolute;
+      width: 48px; height: 48px;
+      border-radius: 50%;
+      opacity: 0;
+      animation: ripple 3s linear infinite;
+    }
+    .ripple.red span { border: 2px solid var(--ripple-red); }
+    .ripple.green span { border: 2px solid var(--ripple-green); }
+    .ripple span:nth-child(1) { animation-delay: 0s; }
+    .ripple span:nth-child(2) { animation-delay: .75s; }
+    .ripple span:nth-child(3) { animation-delay: 1.5s; }
+    .ripple span:nth-child(4) { animation-delay: 2.25s; }
+    @keyframes ripple {
+      0% { transform: scale(1); opacity: .7; }
+      100% { transform: scale(2); opacity: 0; }
+    }
+    .round-btn {
+      width: 64px; height: 64px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      position: relative;
+      z-index: 1;
+      box-shadow: 0 4px 14px rgba(0,0,0,.28);
+    }
+    .round-btn.decline { background: var(--decline); }
+    .round-btn.accept  { background: var(--accept); }
+    .round-btn svg { width: 28px; height: 28px; fill: #fff; }
+    .fs-label {
+      margin-top: 4px;
+      font-size: 14px;
+      color: var(--text);
+      text-shadow: 1px 1px 4px rgba(0,0,0,.5);
+    }
+
+    .note {
+      margin-top: 32px;
+      max-width: 1100px;
+      font-size: 12px;
+      color: #9aa0a6;
+      line-height: 1.55;
+      border-top: 1px solid #2a2e36;
+      padding-top: 16px;
+    }
+  </style>
+</head>
+<body data-theme="dark">
+  <h1>CallKit UI preview</h1>
+  <p class="subtitle">
+    Matches updated Android XML: app icon in notification, system light/dark card + text for banner/drawer,
+    full-screen keeps its own blue background with logo + name + buttons.
+  </p>
+
+  <div class="theme-toggle">
+    <button type="button" id="theme-dark" class="active" onclick="setTheme('dark')">Dark system</button>
+    <button type="button" id="theme-light" onclick="setTheme('light')">Light system</button>
+  </div>
+
+  <div class="grid">
+    <section class="panel">
+      <h2>1. Drawer notification</h2>
+      <p class="meta">System shade card · <code>notification_incoming_call.xml</code></p>
+      <div class="phone">
+        <div class="status-bar"><span>9:41</span><span>▮▮▮</span></div>
+        <div class="shade">
+          <div class="shade-qs"></div>
+          <div class="android-notif">
+            <div class="android-notif-header">
+              <div class="android-notif-small-icon"><svg viewBox="0 0 24 24"><path d="M16,6H4A1,1 0 0,0 3,7V17A1,1 0 0,0 4,18H16A1,1 0 0,0 17,17V13.5L21,17.5V6.5L17,10.5V7A1,1 0 0,0 16,6Z"/></svg></div>
+              <span class="android-notif-app">CallKit example</span>
+              <span class="android-notif-time">now</span>
+            </div>
+            <div class="remote-views">
+              <div class="remote-top">
+                <div class="app-icon"><svg viewBox="0 0 24 24"><path d="M16,6H4A1,1 0 0,0 3,7V17A1,1 0 0,0 4,18H16A1,1 0 0,0 17,17V13.5L21,17.5V6.5L17,10.5V7A1,1 0 0,0 16,6Z"/></svg></div>
+                <div class="remote-text">
+                  <div class="caller-name">Alice Demo</div>
+                  <div class="call-type">Incoming Video call</div>
+                </div>
+              </div>
+              <div class="btn-row">
+                <button class="btn-pill decline" type="button">Decline</button>
+                <button class="btn-pill accept" type="button">Accept</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>2. Banner (heads-up)</h2>
+      <p class="meta">Same layout · system light/dark text + card</p>
+      <div class="phone">
+        <div class="status-bar"><span>9:41</span><span>▮▮▮</span></div>
+        <div class="home-wallpaper"><div class="home-grid"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+        <div class="banner-slot">
+          <div class="android-notif">
+            <div class="android-notif-header">
+              <div class="android-notif-small-icon"><svg viewBox="0 0 24 24"><path d="M16,6H4A1,1 0 0,0 3,7V17A1,1 0 0,0 4,18H16A1,1 0 0,0 17,17V13.5L21,17.5V6.5L17,10.5V7A1,1 0 0,0 16,6Z"/></svg></div>
+              <span class="android-notif-app">CallKit example</span>
+              <span class="android-notif-time">now</span>
+            </div>
+            <div class="remote-views">
+              <div class="remote-top">
+                <div class="app-icon"><svg viewBox="0 0 24 24"><path d="M16,6H4A1,1 0 0,0 3,7V17A1,1 0 0,0 4,18H16A1,1 0 0,0 17,17V13.5L21,17.5V6.5L17,10.5V7A1,1 0 0,0 16,6Z"/></svg></div>
+                <div class="remote-text">
+                  <div class="caller-name">Alice Demo</div>
+                  <div class="call-type">Incoming Video call</div>
+                </div>
+              </div>
+              <div class="btn-row">
+                <button class="btn-pill decline" type="button">Decline</button>
+                <button class="btn-pill accept" type="button">Accept</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>3. Full screen</h2>
+      <p class="meta"><code>activity_incoming_call.xml</code> · logo + name · equal-weight buttons</p>
+      <div class="phone">
+        <div class="status-bar"><span>9:41</span><span>▮▮▮</span></div>
+        <div class="fullscreen">
+          <div class="fs-bg-img"></div>
+          <div class="fs-top">
+            <div class="fs-logo"><svg viewBox="0 0 24 24"><path d="M16,6H4A1,1 0 0,0 3,7V17A1,1 0 0,0 4,18H16A1,1 0 0,0 17,17V13.5L21,17.5V6.5L17,10.5V7A1,1 0 0,0 16,6Z"/></svg></div>
+            <div class="fs-name">Alice Demo</div>
+          </div>
+          <div class="fs-actions">
+            <div class="fs-col">
+              <div class="fs-btn-wrap">
+                <div class="ripple red"><span></span><span></span><span></span><span></span></div>
+                <div class="round-btn decline"><svg viewBox="0 0 24 24"><path d="M12,9c-1.6,0 -3.15,0.25 -4.6,0.72v3.1c0,0.39 -0.23,0.74 -0.56,0.9 -0.98,0.49 -1.87,1.12 -2.66,1.85 -0.18,0.18 -0.43,0.28 -0.7,0.28 -0.28,0 -0.53,-0.11 -0.71,-0.29L0.29,13.08c-0.18,-0.17 -0.29,-0.42 -0.29,-0.7 0,-0.28 0.11,-0.53 0.29,-0.71C3.34,8.78 7.46,7 12,7s8.66,1.78 11.71,4.67c0.18,0.18 0.29,0.43 0.29,0.71 0,0.28 -0.11,0.53 -0.29,0.71l-2.48,2.48c-0.18,0.18 -0.43,0.29 -0.71,0.29 -0.27,0 -0.52,-0.11 -0.7,-0.28 -0.79,-0.74 -1.69,-1.36 -2.67,-1.85 -0.33,-0.16 -0.56,-0.5 -0.56,-0.9v-3.1C15.15,9.25 13.6,9 12,9z"/></svg></div>
+              </div>
+              <div class="fs-label">Decline</div>
+            </div>
+            <div class="fs-col">
+              <div class="fs-btn-wrap">
+                <div class="ripple green"><span></span><span></span><span></span><span></span></div>
+                <div class="round-btn accept"><svg viewBox="0 0 24 24"><path d="M15,8V16H5V8H15M16,6H4A1,1 0 0,0 3,7V17A1,1 0 0,0 4,18H16A1,1 0 0,0 17,17V13.5L21,17.5V6.5L17,10.5V7A1,1 0 0,0 16,6Z"/></svg></div>
+              </div>
+              <div class="fs-label">Accept</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <p class="note">
+    Toggle Dark/Light to preview banner/drawer system theming. Full screen stays branded.
+    Rebuild the example app to see the Android XML changes on device.
+  </p>
+
+  <script>
+    function setTheme(theme) {
+      document.body.setAttribute('data-theme', theme);
+      document.getElementById('theme-dark').classList.toggle('active', theme === 'dark');
+      document.getElementById('theme-light').classList.toggle('active', theme === 'light');
+    }
+  </script>
+</body>
+</html>

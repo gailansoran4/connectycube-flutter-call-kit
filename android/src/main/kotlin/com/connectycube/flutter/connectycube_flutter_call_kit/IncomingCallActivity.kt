@@ -22,6 +22,8 @@ import androidx.annotation.Nullable
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import com.bumptech.glide.Glide
 import com.connectycube.flutter.connectycube_flutter_call_kit.utils.getCallBackgroundResId
+import com.connectycube.flutter.connectycube_flutter_call_kit.utils.getConfiguredLogoLoadUrl
+import com.connectycube.flutter.connectycube_flutter_call_kit.utils.getLogoResId
 import com.connectycube.flutter.connectycube_flutter_call_kit.utils.isFlutterAssetPath
 import com.connectycube.flutter.connectycube_flutter_call_kit.utils.resolveDrawableOrAssetUrl
 import com.google.android.material.imageview.ShapeableImageView
@@ -306,6 +308,49 @@ class IncomingCallActivity : Activity() {
         }
     }
 
+    /** Shows configured logo, or falls back to the app launcher icon. */
+    private fun bindAppLogo(logoImg: ImageView) {
+        val configuredLogo = if (TextUtils.isEmpty(logoUrl)) {
+            com.connectycube.flutter.connectycube_flutter_call_kit.utils.getString(
+                applicationContext,
+                "logo"
+            )
+        } else {
+            logoUrl
+        }
+        val logoDrawableName = if (!TextUtils.isEmpty(configuredLogo) &&
+            !isFlutterAssetPath(configuredLogo) &&
+            !configuredLogo!!.startsWith("http", true)
+        ) {
+            configuredLogo
+        } else {
+            null
+        }
+        val logoResId = getLogoResId(applicationContext, logoDrawableName)
+        val remoteLogo = resolveDrawableOrAssetUrl(applicationContext, configuredLogo)
+            ?: getConfiguredLogoLoadUrl(applicationContext, logoUrl)
+
+        when {
+            remoteLogo != null ||
+                (configuredLogo != null && configuredLogo.startsWith("http", true)) -> {
+                logoImg.visibility = View.VISIBLE
+                Glide.with(applicationContext)
+                    .load(remoteLogo ?: configuredLogo)
+                    .error(applicationInfo.icon)
+                    .into(logoImg)
+            }
+            logoResId != 0 -> {
+                logoImg.setImageResource(logoResId)
+                logoImg.visibility = View.VISIBLE
+            }
+            applicationInfo.icon != 0 -> {
+                logoImg.setImageResource(applicationInfo.icon)
+                logoImg.visibility = View.VISIBLE
+            }
+            else -> logoImg.visibility = View.GONE
+        }
+    }
+
     private fun initUi() {
         val root = findViewById<View>(android.R.id.content)
         if (!TextUtils.isEmpty(backgroundColor)) {
@@ -350,26 +395,21 @@ class IncomingCallActivity : Activity() {
             else -> backgroundImg.visibility = View.GONE
         }
 
-        // Full-screen UI: background image + caller name (+ accept/decline).
-        // Logo belongs on the heads-up notification left icon, not here.
-        findViewById<ImageView>(resources.getIdentifier("call_logo_img", "id", packageName))
-            .visibility = View.GONE
+        // Full-screen: app logo + caller name + accept/decline.
+        // Avatar / call-type stay hidden (layout keeps them for optional future use).
         findViewById<ShapeableImageView>(resources.getIdentifier("avatar_img", "id", packageName))
             .visibility = View.GONE
         findViewById<TextView>(resources.getIdentifier("call_type_txt", "id", packageName))
             .visibility = View.GONE
 
+        val logoImg: ImageView =
+            findViewById(resources.getIdentifier("call_logo_img", "id", packageName))
+        bindAppLogo(logoImg)
+
         val callTitleTxt: TextView =
             findViewById(resources.getIdentifier("user_name_txt", "id", packageName))
         callTitleTxt.text = callInitiatorName
         callTitleTxt.visibility = View.VISIBLE
-        // Center name near top since avatar is hidden.
-        val nameLp = callTitleTxt.layoutParams as android.widget.RelativeLayout.LayoutParams
-        nameLp.addRule(android.widget.RelativeLayout.ALIGN_PARENT_TOP)
-        nameLp.addRule(android.widget.RelativeLayout.CENTER_HORIZONTAL)
-        nameLp.topMargin = (96 * resources.displayMetrics.density).toInt()
-        nameLp.removeRule(android.widget.RelativeLayout.BELOW)
-        callTitleTxt.layoutParams = nameLp
         applyTextColor(callTitleTxt)
 
         val callAcceptButton: ImageView =
